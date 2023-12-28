@@ -2,16 +2,24 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 
+	"github.com/dmars8047/brochat-terminal/internal/state"
+	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type AuthModule struct {
+	userAuthClient *idam.UserAuthClient
+	appState       state.ApplicationState
 }
 
-func NewAuthModule() *AuthModule {
-	mod := AuthModule{}
+func NewAuthModule(userAuthClient *idam.UserAuthClient, appState state.ApplicationState) *AuthModule {
+	mod := AuthModule{
+		userAuthClient: userAuthClient,
+		appState:       appState,
+	}
 
 	return &mod
 }
@@ -120,6 +128,8 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 	grid.SetRows(4, 0, 10)
 	grid.SetColumns(0, 70, 0)
 
+	var email, password string
+
 	loginForm := tview.NewForm()
 	loginForm.SetBackgroundColor(AccentBackgroundColor)
 	loginForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
@@ -127,14 +137,63 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 	loginForm.SetBorder(true).SetTitle(" BroChat - Login ").SetTitleAlign(tview.AlignCenter)
 	loginForm.SetButtonStyle(ButtonStyle)
 	loginForm.SetButtonActivatedStyle(ActivatedButtonStyle)
-	loginForm.AddInputField("Email", "", 0, nil, nil).
-		AddPasswordField("Password", "", 0, '*', nil).
-		AddButton("Login", func() {
-			fmt.Println("Login pressed!")
-		}).
-		AddButton("Back", func() {
-			pages.SwitchToPage("auth:welcome")
-		})
+	loginForm.AddInputField("Email", "", 0, nil, func(text string) {
+		email = text
+	})
+
+	loginForm.AddPasswordField("Password", "", 0, '*', func(text string) {
+		password = text
+	})
+
+	loginForm.AddButton("Login", func() {
+		if email == "" || password == "" {
+			return
+		}
+
+		request := &idam.UserLoginRequest{
+			Email:    email,
+			Password: password,
+		}
+
+		loginResponse, err := mod.userAuthClient.Login("brochat", request)
+
+		if err != nil {
+			errMessage := err.Error()
+
+			idamErr, ok := err.(*idam.ErrorResponse)
+
+			if ok {
+				switch idamErr.Code {
+				case idam.RequestValidationFailure:
+					errMessage = "Login Failed - Request Validation Error"
+					detAdded := false
+					for _, det := range idamErr.Details {
+						if len(det) > 2 {
+							if !detAdded {
+								errMessage += "\n"
+								detAdded = true
+							}
+							val := strings.ToUpper(string(det[0])) + det[1:]
+							errMessage += fmt.Sprintf("\n- %s", val)
+						}
+					}
+				case idam.InvalidCredentials:
+					errMessage = "Login Failed - Invalid Credentials"
+				case idam.UnhandledError:
+					errMessage = "Login Failed - An Unexpected Error Occurred"
+				}
+			}
+
+			alert(pages, "auth:login:alert:err", errMessage)
+			return
+		}
+
+		alert(pages, "auth:login:alert:success", loginResponse.Token)
+	})
+
+	loginForm.AddButton("Back", func() {
+		pages.SwitchToPage("auth:welcome")
+	})
 
 	grid.AddItem(loginForm, 1, 1, 1, 1, 0, 0, true)
 
@@ -165,4 +224,18 @@ func (mod *AuthModule) setupRegistrationPage(app *tview.Application, pages *tvie
 	grid.AddItem(registrationForm, 1, 1, 1, 1, 0, 0, true)
 
 	pages.AddPage("auth:registration", grid, true, false)
+}
+
+func alert(pages *tview.Pages, id string, message string) *tview.Pages {
+	return pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(message).
+			AddButtons([]string{"Close"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				pages.HidePage(id).RemovePage(id)
+			}),
+		false,
+		true,
+	)
 }

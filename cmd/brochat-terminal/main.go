@@ -3,7 +3,9 @@ package main
 import (
 	"log"
 
+	"github.com/dmars8047/brochat-terminal/internal/state"
 	"github.com/dmars8047/brochat-terminal/internal/ui"
+	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/rivo/tview"
 )
 
@@ -13,7 +15,12 @@ func main() {
 	pages := tview.NewPages()
 	pages.SetBackgroundColor(ui.DefaultBackgroundColor)
 
-	authModule := ui.NewAuthModule()
+	// Setup idam user auth client
+	userAuthClient := idam.NewUserAuthClient("https://dev.marshall-labs.com")
+
+	appState := state.NewApplicationState()
+
+	authModule := ui.NewAuthModule(userAuthClient, appState)
 	authModule.SetupAuthPages(app, pages)
 
 	// Start the application.
