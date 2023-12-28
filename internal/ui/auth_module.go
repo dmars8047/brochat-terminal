@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/dmars8047/brochat-terminal/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
@@ -188,7 +189,27 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 			return
 		}
 
-		alert(pages, "auth:login:alert:success", loginResponse.Token)
+		session := &state.UserSession{
+			Auth: state.UserAuth{
+				AccessToken:     loginResponse.Token,
+				TokenExpiration: time.Duration(loginResponse.ExpiresIn),
+			},
+			Info: state.UserInfo{
+				Id:       loginResponse.UserId,
+				Username: loginResponse.Username,
+			},
+		}
+
+		state.Set(mod.appState, state.UserSessionProp, session)
+
+		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+
+		if !ok {
+			alert(pages, "auth:login:alert:err", "State error")
+			return
+		}
+
+		alert(pages, "auth:login:alert:success", ses.Auth.AccessToken)
 	})
 
 	loginForm.AddButton("Back", func() {

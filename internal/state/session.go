@@ -3,8 +3,8 @@ package state
 import "time"
 
 type UserSession struct {
-	Auth UserInfo
-	Info UserAuth
+	Auth UserAuth
+	Info UserInfo
 }
 
 type UserInfo struct {

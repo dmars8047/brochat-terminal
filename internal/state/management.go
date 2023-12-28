@@ -24,11 +24,11 @@ func Get[T any](m ApplicationState, key Property) (*T, bool) {
 		return nil, false
 	}
 
-	value, ok := rawValue.(T)
+	value, ok := rawValue.(*T)
 
 	if !ok {
 		return nil, false
 	}
 
-	return &value, true
+	return value, true
 }
