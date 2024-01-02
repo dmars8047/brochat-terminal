@@ -7,6 +7,7 @@ import (
 
 	"github.com/dmars8047/brochat-terminal/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
+	"github.com/dmars8047/strval"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -129,8 +130,6 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 	grid.SetRows(4, 0, 10)
 	grid.SetColumns(0, 70, 0)
 
-	var email, password string
-
 	loginForm := tview.NewForm()
 	loginForm.SetBackgroundColor(AccentBackgroundColor)
 	loginForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
@@ -138,16 +137,51 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 	loginForm.SetBorder(true).SetTitle(" BroChat - Login ").SetTitleAlign(tview.AlignCenter)
 	loginForm.SetButtonStyle(ButtonStyle)
 	loginForm.SetButtonActivatedStyle(ActivatedButtonStyle)
-	loginForm.AddInputField("Email", "", 0, nil, func(text string) {
-		email = text
-	})
+	loginForm.AddInputField("Email", "", 0, nil, nil)
 
-	loginForm.AddPasswordField("Password", "", 0, '*', func(text string) {
-		password = text
-	})
+	loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
 	loginForm.AddButton("Login", func() {
-		if email == "" || password == "" {
+
+		input, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		formValidationErrors := make([]string, 0)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		email := input.GetText()
+
+		valResult := strval.ValidateStringWithName(email,
+			"Email",
+			strval.MustNotBeEmpty(),
+			strval.MustBeValidEmailFormat(),
+		)
+
+		if !valResult.Valid {
+			formValidationErrors = append(formValidationErrors, valResult.Messages...)
+		}
+
+		input, ok = loginForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+		if !ok {
+			panic("password input form clear failure")
+		}
+
+		password := input.GetText()
+
+		valResult = strval.ValidateStringWithName(password,
+			"Password",
+			strval.MustNotBeEmpty(),
+		)
+
+		if !valResult.Valid {
+			formValidationErrors = append(formValidationErrors, valResult.Messages...)
+		}
+
+		if len(formValidationErrors) > 0 {
+			alertErrors(pages, "auth:login:alert:err", "Login Failed - Form Validation Error", formValidationErrors)
 			return
 		}
 
@@ -167,17 +201,8 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 				switch idamErr.Code {
 				case idam.RequestValidationFailure:
 					errMessage = "Login Failed - Request Validation Error"
-					detAdded := false
-					for _, det := range idamErr.Details {
-						if len(det) > 2 {
-							if !detAdded {
-								errMessage += "\n"
-								detAdded = true
-							}
-							val := strings.ToUpper(string(det[0])) + det[1:]
-							errMessage += fmt.Sprintf("\n- %s", val)
-						}
-					}
+					alertErrors(pages, "auth:login:alert:err", errMessage, idamErr.Details)
+					return
 				case idam.InvalidCredentials:
 					errMessage = "Login Failed - Invalid Credentials"
 				case idam.UnhandledError:
@@ -213,6 +238,22 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 	})
 
 	loginForm.AddButton("Back", func() {
+		input, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		input.SetText("")
+
+		input, ok = loginForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+		if !ok {
+			panic("password input form clear failure")
+		}
+
+		input.SetText("")
+
 		pages.SwitchToPage("auth:welcome")
 	})
 
@@ -245,6 +286,23 @@ func (mod *AuthModule) setupRegistrationPage(app *tview.Application, pages *tvie
 	grid.AddItem(registrationForm, 1, 1, 1, 1, 0, 0, true)
 
 	pages.AddPage("auth:registration", grid, true, false)
+}
+
+func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
+	added := false
+
+	for _, message := range messages {
+		if len(message) > 2 {
+			if !added {
+				errMessage += "\n"
+				added = true
+			}
+			val := strings.ToUpper(string(message[0])) + message[1:]
+			errMessage += fmt.Sprintf("\n- %s", val)
+		}
+	}
+
+	alert(pages, id, errMessage)
 }
 
 func alert(pages *tview.Pages, id string, message string) *tview.Pages {
