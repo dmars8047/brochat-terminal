@@ -104,7 +104,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
-	tvInstructions.SetTextColor(tcell.NewHexColor(0x444444))
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
 
@@ -112,9 +112,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(registrationButton, 0, 2, 1, 1, 0, 0, false).
 		AddItem(exitButton, 0, 4, 1, 1, 0, 0, false).
 		AddItem(tvInstructions, 2, 0, 1, 5, 0, 0, false)
-
-	// grid.SetRows(4, 0, 5, 0).
-	// SetColumns(0, 31, 39, 0)
 
 	grid.AddItem(logoBro, 1, 1, 1, 1, 0, 0, false).
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
@@ -143,7 +140,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 
 	loginForm.AddButton("Login", func() {
 
-		input, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
+		emailInput, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
 
 		formValidationErrors := make([]string, 0)
 
@@ -151,7 +148,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 			panic("email input form clear failure")
 		}
 
-		email := input.GetText()
+		email := emailInput.GetText()
 
 		valResult := strval.ValidateStringWithName(email,
 			"Email",
@@ -163,13 +160,13 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 			formValidationErrors = append(formValidationErrors, valResult.Messages...)
 		}
 
-		input, ok = loginForm.GetFormItemByLabel("Password").(*tview.InputField)
+		passwordInput, ok := loginForm.GetFormItemByLabel("Password").(*tview.InputField)
 
 		if !ok {
 			panic("password input form clear failure")
 		}
 
-		password := input.GetText()
+		password := passwordInput.GetText()
 
 		valResult = strval.ValidateStringWithName(password,
 			"Password",
@@ -210,7 +207,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 				}
 			}
 
-			alert(pages, "auth:login:alert:err", errMessage)
+			Alert(pages, "auth:login:alert:err", errMessage)
 			return
 		}
 
@@ -230,11 +227,16 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
 
 		if !ok {
-			alert(pages, "auth:login:alert:err", "State error")
+			Alert(pages, "auth:login:alert:err", "State error")
 			return
 		}
 
-		alert(pages, "auth:login:alert:success", ses.Auth.AccessToken)
+		state.Set(mod.appState, state.UserSessionProp, ses)
+
+		passwordInput.SetText("")
+		emailInput.SetText("")
+
+		pages.SwitchToPage("home:menu")
 	})
 
 	loginForm.AddButton("Back", func() {
@@ -302,10 +304,10 @@ func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
 		}
 	}
 
-	alert(pages, id, errMessage)
+	Alert(pages, id, errMessage)
 }
 
-func alert(pages *tview.Pages, id string, message string) *tview.Pages {
+func Alert(pages *tview.Pages, id string, message string) *tview.Pages {
 	return pages.AddPage(
 		id,
 		tview.NewModal().
@@ -313,6 +315,22 @@ func alert(pages *tview.Pages, id string, message string) *tview.Pages {
 			AddButtons([]string{"Close"}).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				pages.HidePage(id).RemovePage(id)
+			}),
+		false,
+		true,
+	)
+}
+
+func AlertFatal(app *tview.Application, pages *tview.Pages, id string, message string) *tview.Pages {
+	return pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText("Fatal Error: "+message).
+			AddButtons([]string{"Exit"}).
+			SetBackgroundColor(DangerBackgroundColor).
+			SetTextColor(tcell.ColorWhite).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				app.Stop()
 			}),
 		false,
 		true,

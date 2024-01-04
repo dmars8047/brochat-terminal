@@ -20,6 +20,9 @@ func main() {
 
 	appState := state.NewApplicationState()
 
+	homeModule := ui.NewHomeModule(userAuthClient, appState)
+	homeModule.SetupMenuPage(app, pages)
+
 	authModule := ui.NewAuthModule(userAuthClient, appState)
 	authModule.SetupAuthPages(app, pages)
 

@@ -7,9 +7,11 @@ const (
 	AccentColorTwoColorCode    = 0x222222
 	AccentColorFourColorCode   = 0x444444
 	DefaultBackgroundColorCode = 0x111111
+	DangerBackgroundColorCode  = 0xFF0E0E
 )
 
 var (
+	DangerBackgroundColor  = tcell.NewHexColor(DangerBackgroundColorCode)
 	BroChatYellowColor     = tcell.NewHexColor(BroChatYellowColorCode)
 	DefaultBackgroundColor = tcell.NewHexColor(DefaultBackgroundColorCode)
 	AccentBackgroundColor  = tcell.NewHexColor(AccentColorFourColorCode)
