@@ -4,6 +4,7 @@ type Property = string
 
 const (
 	UserSessionProp Property = "user-session"
+	BrochatUserInfo Property = "brochat-user-info"
 )
 
 type ApplicationState = map[Property]interface{}

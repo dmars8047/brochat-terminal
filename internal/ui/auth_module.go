@@ -5,6 +5,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dmars8047/brochat-service/pkg/chat"
 	"github.com/dmars8047/brochat-terminal/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/dmars8047/strval"
@@ -15,24 +16,34 @@ import (
 type AuthModule struct {
 	userAuthClient *idam.UserAuthClient
 	appState       state.ApplicationState
+	brochatClient  *chat.BroChatUserClient
+	pageNav        *PageNavigator
+	app            *tview.Application
 }
 
-func NewAuthModule(userAuthClient *idam.UserAuthClient, appState state.ApplicationState) *AuthModule {
+func NewAuthModule(userAuthClient *idam.UserAuthClient,
+	brochatClient *chat.BroChatUserClient,
+	appState state.ApplicationState,
+	pageNavigator *PageNavigator,
+	application *tview.Application) *AuthModule {
 	mod := AuthModule{
 		userAuthClient: userAuthClient,
 		appState:       appState,
+		brochatClient:  brochatClient,
+		pageNav:        pageNavigator,
+		app:            application,
 	}
 
 	return &mod
 }
 
-func (mod *AuthModule) SetupAuthPages(app *tview.Application, pages *tview.Pages) {
-	mod.setupWelcomePage(app, pages)
-	mod.setupLoginPage(app, pages)
-	mod.setupRegistrationPage(app, pages)
+func (mod *AuthModule) SetupAuthPages() {
+	mod.setupWelcomePage()
+	mod.setupLoginPage()
+	mod.setupRegistrationPage()
 }
 
-func (mod *AuthModule) setupWelcomePage(app *tview.Application, pages *tview.Pages) {
+func (mod *AuthModule) setupWelcomePage() {
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
 
@@ -68,34 +79,34 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
  \______/ \__|  \__| \_______|  \____/`)
 
 	loginButton := tview.NewButton("Login").SetSelectedFunc(func() {
-		pages.SwitchToPage("auth:login")
+		mod.pageNav.NavigateTo(LOGIN_PAGE)
 	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
 
 	registrationButton := tview.NewButton("Register").SetSelectedFunc(func() {
-		pages.SwitchToPage("auth:registration")
+		mod.pageNav.NavigateTo(REGISTER_PAGE)
 	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
 
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
-		app.Stop()
+		mod.app.Stop()
 	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
 
 	buttonGrid := tview.NewGrid()
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyTab {
 			if loginButton.HasFocus() {
-				app.SetFocus(registrationButton)
+				mod.app.SetFocus(registrationButton)
 			} else if registrationButton.HasFocus() {
-				app.SetFocus(exitButton)
+				mod.app.SetFocus(exitButton)
 			} else if exitButton.HasFocus() {
-				app.SetFocus(loginButton)
+				mod.app.SetFocus(loginButton)
 			}
 		} else if event.Key() == tcell.KeyBacktab {
 			if loginButton.HasFocus() {
-				app.SetFocus(exitButton)
+				mod.app.SetFocus(exitButton)
 			} else if registrationButton.HasFocus() {
-				app.SetFocus(loginButton)
+				mod.app.SetFocus(loginButton)
 			} else if exitButton.HasFocus() {
-				app.SetFocus(registrationButton)
+				mod.app.SetFocus(registrationButton)
 			}
 		}
 		return event
@@ -117,10 +128,10 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
 
-	pages.AddPage("auth:welcome", grid, true, true)
+	mod.pageNav.Register(WELCOME_PAGE, grid, true, true, func() {})
 }
 
-func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages) {
+func (mod *AuthModule) setupLoginPage() {
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
 
@@ -178,7 +189,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 		}
 
 		if len(formValidationErrors) > 0 {
-			alertErrors(pages, "auth:login:alert:err", "Login Failed - Form Validation Error", formValidationErrors)
+			alertErrors(mod.pageNav.Pages, "auth:login:alert:err", "Login Failed - Form Validation Error", formValidationErrors)
 			return
 		}
 
@@ -198,7 +209,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 				switch idamErr.Code {
 				case idam.RequestValidationFailure:
 					errMessage = "Login Failed - Request Validation Error"
-					alertErrors(pages, "auth:login:alert:err", errMessage, idamErr.Details)
+					alertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
 					return
 				case idam.InvalidCredentials:
 					errMessage = "Login Failed - Invalid Credentials"
@@ -207,7 +218,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 				}
 			}
 
-			Alert(pages, "auth:login:alert:err", errMessage)
+			Alert(mod.pageNav.Pages, "auth:login:alert:err", errMessage)
 			return
 		}
 
@@ -227,7 +238,7 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
 
 		if !ok {
-			Alert(pages, "auth:login:alert:err", "State error")
+			Alert(mod.pageNav.Pages, "auth:login:alert:err", "State error")
 			return
 		}
 
@@ -236,7 +247,19 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		pages.SwitchToPage("home:menu")
+		brochatUser, err := mod.brochatClient.GetUser(&chat.AuthInfo{
+			AccessToken: ses.Auth.AccessToken,
+			TokenType:   "Bearer",
+		}, ses.Info.Id)
+
+		if err != nil {
+			Alert(mod.pageNav.Pages, "auth:login:alert:err", err.Error())
+			return
+		}
+
+		state.Set(mod.appState, state.BrochatUserInfo, brochatUser)
+
+		mod.pageNav.NavigateTo(HOME_MENU_PAGE)
 	})
 
 	loginForm.AddButton("Back", func() {
@@ -256,15 +279,15 @@ func (mod *AuthModule) setupLoginPage(app *tview.Application, pages *tview.Pages
 
 		input.SetText("")
 
-		pages.SwitchToPage("auth:welcome")
+		mod.pageNav.NavigateTo(WELCOME_PAGE)
 	})
 
 	grid.AddItem(loginForm, 1, 1, 1, 1, 0, 0, true)
 
-	pages.AddPage("auth:login", grid, true, false)
+	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func() {})
 }
 
-func (mod *AuthModule) setupRegistrationPage(app *tview.Application, pages *tview.Pages) {
+func (mod *AuthModule) setupRegistrationPage() {
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
 
@@ -283,11 +306,11 @@ func (mod *AuthModule) setupRegistrationPage(app *tview.Application, pages *tvie
 		AddPasswordField("Password", "", 0, '*', nil).
 		AddPasswordField("Confirm Password", "", 0, '*', nil).
 		AddButton("Register", func() {}).
-		AddButton("Back", func() { pages.SwitchToPage("auth:welcome") })
+		AddButton("Back", func() { mod.pageNav.NavigateTo(WELCOME_PAGE) })
 
 	grid.AddItem(registrationForm, 1, 1, 1, 1, 0, 0, true)
 
-	pages.AddPage("auth:registration", grid, true, false)
+	mod.pageNav.Register(REGISTER_PAGE, grid, true, false, func() {})
 }
 
 func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {

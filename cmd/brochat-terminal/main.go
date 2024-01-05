@@ -2,7 +2,10 @@ package main
 
 import (
 	"log"
+	"net/http"
+	"time"
 
+	"github.com/dmars8047/brochat-service/pkg/chat"
 	"github.com/dmars8047/brochat-terminal/internal/state"
 	"github.com/dmars8047/brochat-terminal/internal/ui"
 	"github.com/dmars8047/idam-service/pkg/idam"
@@ -10,21 +13,28 @@ import (
 )
 
 func main() {
+	// Setup idam user auth client
+	userAuthClient := idam.NewUserAuthClient("https://dev.marshall-labs.com")
+
+	httpClient := &http.Client{
+		Timeout: 10 * time.Second,
+	}
+
+	brochatClient := chat.NewBroChatClient(httpClient, "https://dev.marshall-labs.com")
+	appState := state.NewApplicationState()
+
 	app := tview.NewApplication()
 
 	pages := tview.NewPages()
 	pages.SetBackgroundColor(ui.DefaultBackgroundColor)
 
-	// Setup idam user auth client
-	userAuthClient := idam.NewUserAuthClient("https://dev.marshall-labs.com")
+	pageNav := ui.NewNavigator(pages)
 
-	appState := state.NewApplicationState()
+	homeModule := ui.NewHomeModule(userAuthClient, app, pageNav, brochatClient, appState)
+	homeModule.SetupHomePages()
 
-	homeModule := ui.NewHomeModule(userAuthClient, appState)
-	homeModule.SetupMenuPage(app, pages)
-
-	authModule := ui.NewAuthModule(userAuthClient, appState)
-	authModule.SetupAuthPages(app, pages)
+	authModule := ui.NewAuthModule(userAuthClient, brochatClient, appState, pageNav, app)
+	authModule.SetupAuthPages()
 
 	// Start the application.
 	err := app.SetRoot(pages, true).Run()
