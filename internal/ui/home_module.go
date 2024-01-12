@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
 	"github.com/dmars8047/brochat-terminal/internal/state"
@@ -114,6 +115,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 			return
 		}
 
+		state.Set(mod.appState, state.UserSessionProp, nil)
+
 		mod.pageNav.NavigateTo(LOGIN_PAGE)
 	})
 
@@ -177,7 +180,21 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
 
-	mod.pageNav.Register(HOME_MENU_PAGE, grid, true, false, func() {})
+	mod.pageNav.Register(HOME_MENU_PAGE, grid, true, false, func() {
+		// Make a call to get the user
+		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+
+		if !ok {
+			AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", "User Session Not Valid")
+		}
+
+		// Make sure the session is still valid
+		if ses.Auth.TokenExpiration.Before(time.Now()) {
+			state.Set(mod.appState, state.UserSessionProp, nil)
+			// Send user to the login page
+			mod.pageNav.NavigateTo(LOGIN_PAGE)
+		}
+	})
 }
 
 func (mod *HomeModule) setupFriendListPage() {
@@ -256,7 +273,7 @@ func (mod *HomeModule) setupFriendListPage() {
 			return
 		}
 
-		_, err := mod.brochatClient.GetUser(&chat.AuthInfo{
+		usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
 			AccessToken: session.Auth.AccessToken,
 			TokenType:   "Bearer",
 		}, session.Info.Id)
@@ -266,24 +283,25 @@ func (mod *HomeModule) setupFriendListPage() {
 			return
 		}
 
-		// TODO NEED TO ADD MORE TO FRIEND IN RESPONSE
-		// for i, friend := range user.Friends {
-		// 	table.SetCell(i+1, 0, tview.NewTableCell(friend.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		// 	table.SetCell(i+1, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
-		// 	table.SetCell(i+1, 2, tview.NewTableCell("Mar 30th 2023").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
-		// }
+		for _, rel := range usr.Relationships {
+			if rel.Type != chat.RELATIONSHIP_TYPE_FRIEND {
+				continue
+			}
 
-		// Add a dummy to the table
-		table.SetCell(1, 0, tview.NewTableCell("Herbzy").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		table.SetCell(1, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
-		table.SetCell(1, 2, tview.NewTableCell("Mar 30th 2023").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+			table.SetCell(1, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+			if rel.IsOnline {
+				table.SetCell(1, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+			} else {
+				table.SetCell(1, 1, tview.NewTableCell("Offline").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignCenter))
+			}
 
-		table.SetCell(2, 0, tview.NewTableCell("Tookins").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		table.SetCell(2, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
-		table.SetCell(2, 2, tview.NewTableCell("September 11th 2023").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+			var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
 
-		table.SetCell(3, 0, tview.NewTableCell("The Stoff").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		table.SetCell(3, 1, tview.NewTableCell("Offline").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignCenter))
-		table.SetCell(3, 2, tview.NewTableCell("April 20th 2023").SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+			table.SetCell(1, 2, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+		}
 	})
 }
+
+// func (mod *HomeModule) setupFindAFriendPage() {
+
+// }

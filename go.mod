@@ -3,7 +3,7 @@ module github.com/dmars8047/brochat-terminal
 go 1.20
 
 require (
-	github.com/dmars8047/brochat-service v1.0.3
+	github.com/dmars8047/brochat-service v1.0.4
 	github.com/dmars8047/idam-service v1.0.21
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.0
@@ -36,8 +36,8 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.7.0 // indirect
-	golang.org/x/crypto v0.17.0 // indirect
-	golang.org/x/net v0.19.0 // indirect
+	golang.org/x/crypto v0.18.0 // indirect
+	golang.org/x/net v0.20.0 // indirect
 	golang.org/x/sys v0.16.0 // indirect
 	golang.org/x/term v0.16.0 // indirect
 	golang.org/x/text v0.14.0 // indirect

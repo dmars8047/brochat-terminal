@@ -14,5 +14,5 @@ type UserInfo struct {
 
 type UserAuth struct {
 	AccessToken     string
-	TokenExpiration time.Duration
+	TokenExpiration time.Time
 }

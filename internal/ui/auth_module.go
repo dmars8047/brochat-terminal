@@ -225,7 +225,7 @@ func (mod *AuthModule) setupLoginPage() {
 		session := &state.UserSession{
 			Auth: state.UserAuth{
 				AccessToken:     loginResponse.Token,
-				TokenExpiration: time.Duration(loginResponse.ExpiresIn),
+				TokenExpiration: time.Now().Add(time.Duration(loginResponse.ExpiresIn * int64(time.Second))),
 			},
 			Info: state.UserInfo{
 				Id:       loginResponse.UserId,
