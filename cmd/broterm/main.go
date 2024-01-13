@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
-	"github.com/dmars8047/brochat-terminal/internal/state"
-	"github.com/dmars8047/brochat-terminal/internal/ui"
+	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/broterm/internal/ui"
 	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/rivo/tview"
 )

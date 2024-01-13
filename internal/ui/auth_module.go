@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
-	"github.com/dmars8047/brochat-terminal/internal/state"
+	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/dmars8047/strval"
 	"github.com/gdamore/tcell/v2"

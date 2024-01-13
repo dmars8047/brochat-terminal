@@ -1,4 +1,4 @@
-module github.com/dmars8047/brochat-terminal
+module github.com/dmars8047/broterm
 
 go 1.20
 
