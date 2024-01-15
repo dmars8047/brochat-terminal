@@ -610,6 +610,23 @@ func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
 	Alert(pages, id, errMessage)
 }
 
+func Confirm(pages *tview.Pages, id string, massage string, yesFunc func()) *tview.Pages {
+	return pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(massage).
+			AddButtons([]string{"Yes", "No"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				if buttonLabel == "Yes" {
+					yesFunc()
+				}
+				pages.HidePage(id).RemovePage(id)
+			}),
+		false,
+		true,
+	)
+}
+
 func Alert(pages *tview.Pages, id string, message string) *tview.Pages {
 	return pages.AddPage(
 		id,
