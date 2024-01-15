@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	github.com/dmars8047/brochat-service v1.0.4
-	github.com/dmars8047/idam-service v1.0.21
+	github.com/dmars8047/idam-service v1.0.22
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.0
 	github.com/rivo/tview v0.0.0-20240101144852-b3bd1aa5e9f2

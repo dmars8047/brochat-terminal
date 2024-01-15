@@ -16,8 +16,8 @@ github.com/dmars8047/app-reg-service v1.0.2 h1:r2kD4NmqkA00lkbLKej5PZQsJDcXDcoal
 github.com/dmars8047/app-reg-service v1.0.2/go.mod h1:anm4dnQ1GqSquLVse+9QlgsKXqvF8MiTanqd4KMx9o0=
 github.com/dmars8047/brochat-service v1.0.4 h1:XEieott1qZUw4LKKdOWWOWLrFcjHctjcl+VfZBAB2KI=
 github.com/dmars8047/brochat-service v1.0.4/go.mod h1:/eRvAwzSpYv90HZIk1eJJvCc37wsQJmdDzsNaO/+w/k=
-github.com/dmars8047/idam-service v1.0.21 h1:U3XChsmI0EwNtHjPxsg6W1OlIWK+XK724rGeD7C52WE=
-github.com/dmars8047/idam-service v1.0.21/go.mod h1:c2T2T/RTNhI//prBE8DH295DHeatTHa6b994/MNM1TY=
+github.com/dmars8047/idam-service v1.0.22 h1:oGgYBs1XjlE9CkEFsfe7X3alrWlWoDoWJXy49+nvJGo=
+github.com/dmars8047/idam-service v1.0.22/go.mod h1:c2T2T/RTNhI//prBE8DH295DHeatTHa6b994/MNM1TY=
 github.com/dmars8047/strval v1.0.1 h1:N6UBFAyd4WpPx8bZT7y8vTns5nCMv0JBGFnWhK+cV/k=
 github.com/dmars8047/strval v1.0.1/go.mod h1:8zmiNQZqJHXfuQTuaC70vmLsq/xFni86NLvamvtsBDU=
 github.com/gabriel-vasile/mimetype v1.4.3 h1:in2uUcidCuFcDKtdcBxlR0rJ1+fsokWf+uqxgUFjbI0=

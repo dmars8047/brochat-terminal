@@ -263,29 +263,37 @@ func (mod *AuthModule) setupLoginPage() {
 	})
 
 	loginForm.AddButton("Back", func() {
-		input, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
-
-		if !ok {
-			panic("email input form clear failure")
-		}
-
-		input.SetText("")
-
-		input, ok = loginForm.GetFormItemByLabel("Password").(*tview.InputField)
-
-		if !ok {
-			panic("password input form clear failure")
-		}
-
-		input.SetText("")
-
 		mod.pageNav.NavigateTo(WELCOME_PAGE)
 	})
 
 	grid.AddItem(loginForm, 1, 1, 1, 1, 0, 0, true)
 
-	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func() {})
+	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func() {
+		loginForm.SetFocus(0)
+
+		emailInput, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		emailInput.SetText("")
+
+		pwInput, ok := loginForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+		if !ok {
+			panic("password input form clear failure")
+		}
+
+		pwInput.SetText("")
+	})
 }
+
+const (
+	REGISTRATION_MODAL_INFO      = "auth:register:alert:info"
+	REGISTRATION_MODAL_ERR       = "auth:register:alert:err"
+	REGISTRATION_SUCCESS_MESSAGE = "Registration Successful. A verification email has been sent to the email address provided."
+)
 
 func (mod *AuthModule) setupRegistrationPage() {
 	grid := tview.NewGrid()
@@ -301,16 +309,169 @@ func (mod *AuthModule) setupRegistrationPage() {
 	registrationForm.SetButtonStyle(ButtonStyle)
 	registrationForm.SetButtonActivatedStyle(ActivatedButtonStyle)
 
-	registrationForm.AddInputField("Username", "", 0, nil, nil).
+	registrationForm.
 		AddInputField("Email", "", 0, nil, nil).
+		AddInputField("Username", "", 0, nil, nil).
 		AddPasswordField("Password", "", 0, '*', nil).
 		AddPasswordField("Confirm Password", "", 0, '*', nil).
-		AddButton("Register", func() {}).
+		AddButton("Register", func() {
+			formValidationErrors := make([]string, 0)
+
+			emailInput, ok := registrationForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+			if !ok {
+				panic("email input form clear failure")
+			}
+
+			email := emailInput.GetText()
+
+			valResult := strval.ValidateStringWithName(email,
+				"Email",
+				strval.MustNotBeEmpty(),
+				strval.MustBeValidEmailFormat(),
+			)
+
+			if !valResult.Valid {
+				formValidationErrors = append(formValidationErrors, valResult.Messages...)
+			}
+
+			passwordInput, ok := registrationForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+			if !ok {
+				panic("password input form clear failure")
+			}
+
+			password := passwordInput.GetText()
+
+			valResult = strval.ValidateStringWithName(password,
+				"Password",
+				strval.MustNotBeEmpty(),
+				strval.MustHaveMinLengthOf(idam.MinPasswordLength),
+				strval.MustHaveMaxLengthOf(idam.MaxPasswordLength),
+				strval.MustContainAtLeastOne([]rune(idam.AllowablePasswordSpecialCharacters)),
+				strval.MustNotContainAnyOf([]rune(idam.DisallowedPassowrdSpecialCharacters)),
+				strval.MustContainNumbers(),
+				strval.MustContainUppercaseLetter(),
+				strval.MustContainLowercaseLetter(),
+				strval.MustOnlyContainPrintableCharacters(),
+				strval.MustOnlyContainASCIICharacters(),
+			)
+
+			if !valResult.Valid {
+				formValidationErrors = append(formValidationErrors, valResult.Messages...)
+			}
+
+			confirmPasswordInput, ok := registrationForm.GetFormItemByLabel("Confirm Password").(*tview.InputField)
+
+			if !ok {
+				panic("confirm password input form clear failure")
+			}
+
+			confirmPassword := confirmPasswordInput.GetText()
+
+			if password != confirmPassword {
+				formValidationErrors = append(formValidationErrors, "Passwords do not match")
+			}
+
+			usernameInput, ok := registrationForm.GetFormItemByLabel("Username").(*tview.InputField)
+
+			if !ok {
+				panic("username input form clear failure")
+			}
+
+			username := usernameInput.GetText()
+
+			valResult = strval.ValidateStringWithName(username,
+				"Username",
+				strval.MustNotBeEmpty(),
+				strval.MustBeAlphaNumeric(),
+				strval.MustHaveMinLengthOf(3),
+				strval.MustHaveMaxLengthOf(20),
+			)
+
+			if !valResult.Valid {
+				formValidationErrors = append(formValidationErrors, valResult.Messages...)
+			}
+
+			if len(formValidationErrors) > 0 {
+				alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, "Login Failed - Form Validation Error", formValidationErrors)
+				return
+			}
+
+			request := &idam.UserRegistrationRequest{
+				Email:    email,
+				Password: password,
+				Username: username,
+			}
+
+			_, err := mod.userAuthClient.Register("brochat", request)
+
+			if err != nil {
+				errMessage := err.Error()
+
+				idamErr, ok := err.(*idam.ErrorResponse)
+
+				if ok {
+					switch idamErr.Code {
+					case idam.RequestValidationFailure:
+						errMessage = "Registration Failed - Request Validation Error"
+						alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage, idamErr.Details)
+						return
+					case idam.InvalidCredentials:
+						errMessage = "Registration Failed - Invalid Credentials"
+					case idam.UnhandledError:
+						errMessage = "Registration Failed - An Unexpected Error Occurred"
+					}
+				}
+
+				Alert(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage)
+				return
+			}
+
+			AlertWithDoneFunc(mod.pageNav.Pages, REGISTRATION_MODAL_INFO, REGISTRATION_SUCCESS_MESSAGE, func(buttonIndex int, buttonLabel string) {
+				mod.pageNav.Pages.HidePage(REGISTRATION_MODAL_INFO).RemovePage(REGISTRATION_MODAL_INFO)
+				mod.pageNav.NavigateTo(WELCOME_PAGE)
+			})
+		}).
 		AddButton("Back", func() { mod.pageNav.NavigateTo(WELCOME_PAGE) })
 
 	grid.AddItem(registrationForm, 1, 1, 1, 1, 0, 0, true)
 
-	mod.pageNav.Register(REGISTER_PAGE, grid, true, false, func() {})
+	mod.pageNav.Register(REGISTER_PAGE, grid, true, false, func() {
+		registrationForm.SetFocus(0)
+
+		emailInput, ok := registrationForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		emailInput.SetText("")
+
+		passwordInput, ok := registrationForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+		if !ok {
+			panic("password input form clear failure")
+		}
+
+		passwordInput.SetText("")
+
+		confirmPasswordInput, ok := registrationForm.GetFormItemByLabel("Confirm Password").(*tview.InputField)
+
+		if !ok {
+			panic("confirm password input form clear failure")
+		}
+
+		confirmPasswordInput.SetText("")
+
+		usernameInput, ok := registrationForm.GetFormItemByLabel("Username").(*tview.InputField)
+
+		if !ok {
+			panic("username input form clear failure")
+		}
+
+		usernameInput.SetText("")
+	})
 }
 
 func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
@@ -339,6 +500,18 @@ func Alert(pages *tview.Pages, id string, message string) *tview.Pages {
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				pages.HidePage(id).RemovePage(id)
 			}),
+		false,
+		true,
+	)
+}
+
+func AlertWithDoneFunc(pages *tview.Pages, id string, message string, doneFunc func(buttonIndex int, buttonLabel string)) *tview.Pages {
+	return pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(message).
+			AddButtons([]string{"Close"}).
+			SetDoneFunc(doneFunc),
 		false,
 		true,
 	)
