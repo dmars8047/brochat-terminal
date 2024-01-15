@@ -5,13 +5,14 @@ import "github.com/rivo/tview"
 type Page string
 
 const (
-	WELCOME_PAGE             Page = "auth:welcome"
-	LOGIN_PAGE               Page = "auth:login"
-	REGISTER_PAGE            Page = "auth:register"
-	FORGOT_PW_PAGE           Page = "auth:forgotpw"
-	HOME_MENU_PAGE           Page = "home:menu"
-	HOME_FRIENDS_LIST_PAGE   Page = "home:friendslist"
-	HOME_FRIENDS_FINDER_PAGE Page = "home:findafriend"
+	WELCOME_PAGE               Page = "auth:welcome"
+	LOGIN_PAGE                 Page = "auth:login"
+	REGISTER_PAGE              Page = "auth:register"
+	FORGOT_PW_PAGE             Page = "auth:forgotpw"
+	HOME_MENU_PAGE             Page = "home:menu"
+	HOME_FRIENDS_LIST_PAGE     Page = "home:friendslist"
+	HOME_FRIENDS_FINDER_PAGE   Page = "home:findafriend"
+	HOME_PENDING_REQUESTS_PAGE Page = "home:pendingrequests"
 )
 
 type PageNavigator struct {

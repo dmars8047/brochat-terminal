@@ -37,6 +37,7 @@ func (mod *HomeModule) SetupHomePages() {
 	mod.setupMenuPage()
 	mod.setupFriendListPage()
 	mod.setupFindAFriendPage()
+	mod.setupAcceptPendingRequestPage()
 }
 
 func (mod *HomeModule) setupMenuPage() {
@@ -239,7 +240,9 @@ func (mod *HomeModule) setupFriendListPage() {
 				userFriends = make(map[uint8]chat.UserRelationship, 0)
 				table.Clear()
 			case 'p':
-				Alert(mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_INFO, "Pending Requests Feature Not Implemented Yet")
+				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE)
+				userFriends = make(map[uint8]chat.UserRelationship, 0)
+				table.Clear()
 			}
 		}
 
@@ -293,13 +296,25 @@ func (mod *HomeModule) setupFriendListPage() {
 
 		usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
 			AccessToken: session.Auth.AccessToken,
-			TokenType:   "Bearer",
+			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 		}, session.Info.Id)
 
 		if err != nil {
 			AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())
 			return
 		}
+
+		state.Set(mod.appState, state.BrochatUserInfo, usr)
+
+		countOfPendingFriendRequests := 0
+
+		for _, rel := range usr.Relationships {
+			if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+				countOfPendingFriendRequests++
+			}
+		}
+
+		tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (q) Quit", countOfPendingFriendRequests))
 
 		for i, rel := range usr.Relationships {
 			row := i + 1
@@ -361,7 +376,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 
 			err := mod.brochatClient.SendFriendRequest(&chat.AuthInfo{
 				AccessToken: session.Auth.AccessToken,
-				TokenType:   "Bearer",
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, &chat.SendFriendRequestRequest{
 				RequestedUserId: uInfo.ID,
 			})
@@ -399,7 +414,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
-	tvInstructions.SetText("(s) Send Friend Request - (q) Quit")
+	tvInstructions.SetText("(q) Quit")
 
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
@@ -437,7 +452,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 
 		usrs, err := mod.brochatClient.GetUsers(&chat.AuthInfo{
 			AccessToken: session.Auth.AccessToken,
-			TokenType:   "Bearer",
+			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 		}, true, true, 1, 10, "")
 
 		if err != nil {
@@ -453,6 +468,125 @@ func (mod *HomeModule) setupFindAFriendPage() {
 			table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
 
 			users[uint8(row)] = usr
+		}
+	})
+}
+
+func (mod *HomeModule) setupAcceptPendingRequestPage() {
+	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvHeader.SetBackgroundColor(DefaultBackgroundColor)
+	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvHeader.SetText("Pending Friend Requests")
+
+	table := tview.NewTable().
+		SetBorders(true)
+	table.SetBackgroundColor(DefaultBackgroundColor)
+	table.SetFixed(1, 1)
+	table.SetSelectable(true, false)
+
+	userPendingRequests := make(map[uint8]chat.UserRelationship, 0)
+
+	table.SetSelectedFunc(func(row int, _ int) {
+		rel, ok := userPendingRequests[uint8(row)]
+
+		if !ok {
+			return
+		}
+
+		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", rel.Username), func() {
+			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
+				return
+			}
+
+			err := mod.brochatClient.AcceptFriendRequest(&chat.AuthInfo{
+				AccessToken: session.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, &chat.AcceptFriendRequestRequest{
+				InitiatingUserId: rel.UserId,
+			})
+
+			if err != nil {
+				if err.Error() == "user not found or friend request not found" {
+					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request from %s Not Found", rel.Username))
+					return
+				} else if err.Error() == "bad request" {
+					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, "Friend Request Acceptance Not Processable")
+					return
+				}
+
+				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())
+				return
+			}
+
+			Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Accepted Friend Request from %s", rel.Username))
+		})
+	})
+
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'q':
+				mod.pageNav.NavigateTo(HOME_MENU_PAGE)
+				userPendingRequests = make(map[uint8]chat.UserRelationship, 0)
+				table.Clear()
+			}
+		}
+
+		return event
+	})
+
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvInstructions.SetText("(q) Quit")
+
+	grid := tview.NewGrid()
+	grid.SetBackgroundColor(DefaultBackgroundColor)
+
+	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
+	grid.SetColumns(0, 76, 0)
+
+	grid.AddItem(tvHeader, 1, 1, 1, 1, 0, 0, false)
+	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
+
+	mod.pageNav.Register(HOME_PENDING_REQUESTS_PAGE, grid, true, false, func() {
+		userPendingRequests = make(map[uint8]chat.UserRelationship)
+		table.Clear()
+
+		table.SetCell(0, 0, tview.NewTableCell("Username").
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignCenter).
+			SetExpansion(1).
+			SetSelectable(false).
+			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+		table.SetCell(0, 1, tview.NewTableCell("Last Active").
+			SetTextColor(tcell.ColorWhite).
+			SetAlign(tview.AlignRight).
+			SetSelectable(false).
+			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+		brochatUser, ok := state.Get[chat.User](mod.appState, state.BrochatUserInfo)
+
+		if !ok {
+			AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user info.")
+			return
+		}
+
+		for i, rel := range brochatUser.Relationships {
+			row := i + 1
+
+			if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+				table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+				var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
+				table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+
+				userPendingRequests[uint8(row)] = rel
+			}
 		}
 	})
 }
