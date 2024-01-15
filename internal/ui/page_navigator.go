@@ -8,6 +8,7 @@ const (
 	WELCOME_PAGE           Page = "auth:welcome"
 	LOGIN_PAGE             Page = "auth:login"
 	REGISTER_PAGE          Page = "auth:register"
+	FORGOT_PW_PAGE         Page = "auth:forgotpw"
 	HOME_MENU_PAGE         Page = "home:menu"
 	HOME_FRIENDS_LIST_PAGE Page = "home:friendslist"
 )

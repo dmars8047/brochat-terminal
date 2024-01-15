@@ -41,6 +41,7 @@ func (mod *AuthModule) SetupAuthPages() {
 	mod.setupWelcomePage()
 	mod.setupLoginPage()
 	mod.setupRegistrationPage()
+	mod.setupForgotPasswordPage()
 }
 
 func (mod *AuthModule) setupWelcomePage() {
@@ -134,8 +135,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 func (mod *AuthModule) setupLoginPage() {
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
-
-	grid.SetRows(4, 0, 10)
+	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
 	loginForm := tview.NewForm()
@@ -150,7 +150,6 @@ func (mod *AuthModule) setupLoginPage() {
 	loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
 	loginForm.AddButton("Login", func() {
-
 		emailInput, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
 
 		formValidationErrors := make([]string, 0)
@@ -211,6 +210,8 @@ func (mod *AuthModule) setupLoginPage() {
 					errMessage = "Login Failed - Request Validation Error"
 					alertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
 					return
+				case idam.UserNotFound:
+					errMessage = "Login Failed - User Not Found"
 				case idam.InvalidCredentials:
 					errMessage = "Login Failed - Invalid Credentials"
 				case idam.UnhandledError:
@@ -266,7 +267,24 @@ func (mod *AuthModule) setupLoginPage() {
 		mod.pageNav.NavigateTo(WELCOME_PAGE)
 	})
 
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetText("(f) Forgot Password?")
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+
+	loginForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'f':
+				mod.pageNav.NavigateTo(FORGOT_PW_PAGE)
+			}
+		}
+
+		return event
+	})
+
 	grid.AddItem(loginForm, 1, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
 	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func() {
 		loginForm.SetFocus(0)
@@ -286,6 +304,107 @@ func (mod *AuthModule) setupLoginPage() {
 		}
 
 		pwInput.SetText("")
+	})
+}
+
+const (
+	FORGOT_PW_TITLE           = " BroChat - Forgot Password "
+	FORGOT_PW_MODAL_INFO      = "auth:forgotpw:alert:info"
+	FORGOT_PW_MODAL_ERR       = "auth:forgotpw:alert:err"
+	FORGOT_PW_SUCCESS_MESSAGE = "Password Reset Link Sent. Check your email to proceed."
+)
+
+func (mod *AuthModule) setupForgotPasswordPage() {
+	grid := tview.NewGrid()
+	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetRows(4, 0, 1, 3, 4)
+	grid.SetColumns(0, 70, 0)
+
+	forgotPWForm := tview.NewForm()
+	forgotPWForm.SetBackgroundColor(AccentBackgroundColor)
+	forgotPWForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
+	forgotPWForm.SetLabelColor(BroChatYellowColor)
+	forgotPWForm.SetBorder(true).SetTitle(FORGOT_PW_TITLE).SetTitleAlign(tview.AlignCenter)
+	forgotPWForm.SetButtonStyle(ButtonStyle)
+	forgotPWForm.SetButtonActivatedStyle(ActivatedButtonStyle)
+	forgotPWForm.AddInputField("Email", "", 0, nil, nil)
+
+	forgotPWForm.AddButton("Submit", func() {
+		emailInput, ok := forgotPWForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		email := emailInput.GetText()
+
+		valResult := strval.ValidateStringWithName(email,
+			"Email",
+			strval.MustNotBeEmpty(),
+			strval.MustBeValidEmailFormat(),
+		)
+
+		if !valResult.Valid {
+			alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, "Form Validation Error", valResult.Messages)
+			return
+		}
+
+		request := &idam.UserPasswordResetInitiationRequest{
+			Email: email,
+		}
+
+		err := mod.userAuthClient.InitiatePasswordReset("brochat", request)
+
+		if err != nil {
+			errMessage := err.Error()
+
+			idamErr, ok := err.(*idam.ErrorResponse)
+
+			if ok {
+				switch idamErr.Code {
+				case idam.RequestValidationFailure:
+					errMessage = "Request Validation Error"
+					alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage, idamErr.Details)
+					return
+				case idam.UserNotFound:
+					errMessage = "User Not Found"
+				case idam.UnhandledError:
+					errMessage = "An Unexpected Error Occurred"
+				}
+			}
+
+			Alert(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage)
+			return
+		}
+
+		AlertWithDoneFunc(mod.pageNav.Pages, FORGOT_PW_MODAL_INFO, FORGOT_PW_SUCCESS_MESSAGE, func(buttonIndex int, buttonLabel string) {
+			mod.pageNav.Pages.HidePage(FORGOT_PW_MODAL_INFO).RemovePage(FORGOT_PW_MODAL_INFO)
+			mod.pageNav.NavigateTo(LOGIN_PAGE)
+		})
+	})
+
+	forgotPWForm.AddButton("Back", func() {
+		mod.pageNav.NavigateTo(LOGIN_PAGE)
+	})
+
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetText("Enter your email to recieve a password reset link.")
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+
+	grid.AddItem(forgotPWForm, 1, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
+
+	mod.pageNav.Register(FORGOT_PW_PAGE, grid, true, false, func() {
+		forgotPWForm.SetFocus(0)
+
+		emailInput, ok := forgotPWForm.GetFormItemByLabel("Email").(*tview.InputField)
+
+		if !ok {
+			panic("email input form clear failure")
+		}
+
+		emailInput.SetText("")
 	})
 }
 
