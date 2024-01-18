@@ -4,27 +4,27 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/auth"
+	"github.com/dmars8047/broterm/internal/bro"
 	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
-	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type HomeModule struct {
 	appContext     *state.ApplicationContext
-	userAuthClient *idam.UserAuthClient
-	brochatClient  *chat.BroChatUserClient
+	userAuthClient *auth.UserAuthClient
+	brochatClient  *bro.BroChatUserClient
 	pageNav        *PageNavigator
 	app            *tview.Application
 	feedClient     *feed.Client
 }
 
-func NewHomeModule(userAuthClient *idam.UserAuthClient,
+func NewHomeModule(userAuthClient *auth.UserAuthClient,
 	application *tview.Application,
 	pageNavigator *PageNavigator,
-	brochatClient *chat.BroChatUserClient,
+	brochatClient *bro.BroChatUserClient,
 	appContext *state.ApplicationContext,
 	feedClient *feed.Client) *HomeModule {
 	return &HomeModule{
@@ -205,7 +205,7 @@ func (mod *HomeModule) setupFriendListPage() {
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Friends List")
 
-	userFriends := make(map[uint8]chat.UserRelationship, 0)
+	userFriends := make(map[uint8]bro.UserRelationship, 0)
 
 	table := tview.NewTable().
 		SetBorders(true)
@@ -230,15 +230,15 @@ func (mod *HomeModule) setupFriendListPage() {
 			switch event.Rune() {
 			case 'q':
 				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
-				userFriends = make(map[uint8]chat.UserRelationship, 0)
+				userFriends = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
 			case 'f':
 				mod.pageNav.NavigateTo(HOME_FRIENDS_FINDER_PAGE, nil)
-				userFriends = make(map[uint8]chat.UserRelationship, 0)
+				userFriends = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
 			case 'p':
 				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE, nil)
-				userFriends = make(map[uint8]chat.UserRelationship, 0)
+				userFriends = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
 			}
 		}
@@ -282,7 +282,7 @@ func (mod *HomeModule) setupFriendListPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
+			usr, err := mod.brochatClient.GetUser(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, mod.appContext.UserSession.Info.Id)
@@ -297,7 +297,7 @@ func (mod *HomeModule) setupFriendListPage() {
 			countOfPendingFriendRequests := 0
 
 			for _, rel := range usr.Relationships {
-				if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+				if rel.Type&bro.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
 					countOfPendingFriendRequests++
 				}
 			}
@@ -307,7 +307,7 @@ func (mod *HomeModule) setupFriendListPage() {
 			for i, rel := range usr.Relationships {
 				row := i + 1
 
-				if rel.Type != chat.RELATIONSHIP_TYPE_FRIEND {
+				if rel.Type != bro.RELATIONSHIP_TYPE_FRIEND {
 					continue
 				}
 
@@ -326,7 +326,7 @@ func (mod *HomeModule) setupFriendListPage() {
 			}
 		},
 		func() {
-			userFriends = make(map[uint8]chat.UserRelationship, 0)
+			userFriends = make(map[uint8]bro.UserRelationship, 0)
 			table.Clear()
 		})
 }
@@ -343,7 +343,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Find Friends")
 
-	users := make(map[uint8]chat.UserInfo, 0)
+	users := make(map[uint8]bro.UserInfo, 0)
 
 	table := tview.NewTable().
 		SetBorders(true)
@@ -359,10 +359,10 @@ func (mod *HomeModule) setupFindAFriendPage() {
 		}
 
 		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", uInfo.Username), func() {
-			err := mod.brochatClient.SendFriendRequest(&chat.AuthInfo{
+			err := mod.brochatClient.SendFriendRequest(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, &chat.SendFriendRequestRequest{
+			}, &bro.SendFriendRequestRequest{
 				RequestedUserId: uInfo.ID,
 			})
 
@@ -388,7 +388,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 			switch event.Rune() {
 			case 'q':
 				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
-				users = make(map[uint8]chat.UserInfo, 0)
+				users = make(map[uint8]bro.UserInfo, 0)
 				table.Clear()
 			}
 		}
@@ -426,7 +426,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			usrs, err := mod.brochatClient.GetUsers(&chat.AuthInfo{
+			usrs, err := mod.brochatClient.GetUsers(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, true, true, 1, 10, "")
@@ -447,7 +447,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 			}
 		},
 		func() {
-			users = make(map[uint8]chat.UserInfo, 0)
+			users = make(map[uint8]bro.UserInfo, 0)
 			table.Clear()
 		})
 }
@@ -464,7 +464,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	table.SetFixed(1, 1)
 	table.SetSelectable(true, false)
 
-	userPendingRequests := make(map[uint8]chat.UserRelationship, 0)
+	userPendingRequests := make(map[uint8]bro.UserRelationship, 0)
 
 	table.SetSelectedFunc(func(row int, _ int) {
 		rel, ok := userPendingRequests[uint8(row)]
@@ -474,10 +474,10 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 		}
 
 		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", rel.Username), func() {
-			err := mod.brochatClient.AcceptFriendRequest(&chat.AuthInfo{
+			err := mod.brochatClient.AcceptFriendRequest(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, &chat.AcceptFriendRequestRequest{
+			}, &bro.AcceptFriendRequestRequest{
 				InitiatingUserId: rel.UserId,
 			})
 
@@ -503,7 +503,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 			switch event.Rune() {
 			case 'q':
 				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
-				userPendingRequests = make(map[uint8]chat.UserRelationship, 0)
+				userPendingRequests = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
 			}
 		}
@@ -544,7 +544,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 			for i, rel := range mod.appContext.BrochatUser.Relationships {
 				row := i + 1
 
-				if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+				if rel.Type&bro.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
 					table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
 					var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
 					table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
@@ -554,7 +554,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 			}
 		},
 		func() {
-			userPendingRequests = make(map[uint8]chat.UserRelationship)
+			userPendingRequests = make(map[uint8]bro.UserRelationship)
 			table.Clear()
 		})
 }
@@ -603,7 +603,7 @@ func (mod *HomeModule) setupChatPage() {
 			}
 
 			// Get the channel
-			channel, err := mod.brochatClient.GetChannelManifest(&chat.AuthInfo{
+			channel, err := mod.brochatClient.GetChannelManifest(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, chatParams.channel_id)
@@ -616,7 +616,7 @@ func (mod *HomeModule) setupChatPage() {
 			textView.SetTitle(fmt.Sprintf(" %s - %s ", channel.Users[0].Username, channel.Users[1].Username))
 
 			// Get the channel messages
-			messages, err := mod.brochatClient.GetChannelMessages(&chat.AuthInfo{
+			messages, err := mod.brochatClient.GetChannelMessages(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, chatParams.channel_id)
@@ -664,7 +664,7 @@ func (mod *HomeModule) setupChatPage() {
 					text := textArea.GetText()
 
 					if len(text) > 0 {
-						mod.feedClient.Send(chat.ChatMessage{
+						mod.feedClient.Send(bro.ChatMessage{
 							ChannelId:    channel.ID,
 							Content:      text,
 							SenderUserId: mod.appContext.UserSession.Info.Id,
@@ -679,7 +679,7 @@ func (mod *HomeModule) setupChatPage() {
 				return event
 			})
 
-			go func(ch chat.ChannelManifest, cs *state.ChatSession, a *tview.Application, tv *tview.TextView, ta *tview.TextArea) {
+			go func(ch bro.ChannelManifest, cs *state.ChatSession, a *tview.Application, tv *tview.TextView, ta *tview.TextArea) {
 				for {
 					select {
 					case <-cs.Context.Done():

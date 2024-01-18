@@ -8,7 +8,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/bro"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/gorilla/websocket"
 )
@@ -22,7 +22,7 @@ type Client struct {
 	dialer             *websocket.Dialer
 	url                url.URL
 	conn               *websocket.Conn
-	ChatMessageChannel chan chat.ChatMessage
+	ChatMessageChannel chan bro.ChatMessage
 	Connected          bool
 }
 
@@ -30,12 +30,12 @@ func NewFeedClient(dialer *websocket.Dialer, baseUrl string) *Client {
 	return &Client{
 		dialer:             dialer,
 		url:                url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
-		ChatMessageChannel: make(chan chat.ChatMessage, 1),
+		ChatMessageChannel: make(chan bro.ChatMessage, 1),
 	}
 }
 
 func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
-	c.ChatMessageChannel = make(chan chat.ChatMessage, 1)
+	c.ChatMessageChannel = make(chan bro.ChatMessage, 1)
 
 	headers := http.Header{}
 	headers.Add("Authorization", "Bearer "+userAuth.AccessToken)
@@ -65,7 +65,7 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 
 			switch messageType {
 			case websocket.TextMessage:
-				var chatMessage chat.ChatMessage
+				var chatMessage bro.ChatMessage
 				msgErr := json.Unmarshal(message, &chatMessage)
 
 				if msgErr != nil {
@@ -93,7 +93,7 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Send(message chat.ChatMessage) error {
+func (c *Client) Send(message bro.ChatMessage) error {
 	if !c.Connected || c.conn == nil {
 		return errors.New("not connected")
 	}

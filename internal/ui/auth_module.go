@@ -4,26 +4,26 @@ import (
 	"context"
 	"time"
 
-	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/auth"
+	"github.com/dmars8047/broterm/internal/bro"
 	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
-	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/dmars8047/strval"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type AuthModule struct {
-	userAuthClient *idam.UserAuthClient
+	userAuthClient *auth.UserAuthClient
 	appContext     *state.ApplicationContext
-	brochatClient  *chat.BroChatUserClient
+	brochatClient  *bro.BroChatUserClient
 	pageNav        *PageNavigator
 	app            *tview.Application
 	feedClient     *feed.Client
 }
 
-func NewAuthModule(userAuthClient *idam.UserAuthClient,
-	brochatClient *chat.BroChatUserClient,
+func NewAuthModule(userAuthClient *auth.UserAuthClient,
+	brochatClient *bro.BroChatUserClient,
 	appContext *state.ApplicationContext,
 	pageNavigator *PageNavigator,
 	application *tview.Application,
@@ -123,7 +123,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
-	tvVersionNumber.SetText("Version - v0.0.3")
+	tvVersionNumber.SetText("Version - v0.0.4")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
@@ -201,7 +201,7 @@ func (mod *AuthModule) setupLoginPage() {
 			return
 		}
 
-		request := &idam.UserLoginRequest{
+		request := &auth.UserLoginRequest{
 			Email:    email,
 			Password: password,
 		}
@@ -211,19 +211,19 @@ func (mod *AuthModule) setupLoginPage() {
 		if err != nil {
 			errMessage := err.Error()
 
-			idamErr, ok := err.(*idam.ErrorResponse)
+			idamErr, ok := err.(*auth.ErrorResponse)
 
 			if ok {
 				switch idamErr.Code {
-				case idam.RequestValidationFailure:
+				case auth.RequestValidationFailure:
 					errMessage = "Login Failed - Request Validation Error"
 					alertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
 					return
-				case idam.UserNotFound:
+				case auth.UserNotFound:
 					errMessage = "Login Failed - User Not Found"
-				case idam.InvalidCredentials:
+				case auth.InvalidCredentials:
 					errMessage = "Login Failed - Invalid Credentials"
-				case idam.UnhandledError:
+				case auth.UnhandledError:
 					errMessage = "Login Failed - An Unexpected Error Occurred"
 				}
 			}
@@ -252,7 +252,7 @@ func (mod *AuthModule) setupLoginPage() {
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		brochatUser, err := mod.brochatClient.GetUser(&chat.AuthInfo{
+		brochatUser, err := mod.brochatClient.GetUser(&bro.AuthInfo{
 			AccessToken: session.Auth.AccessToken,
 			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 		}, session.Info.Id)
@@ -360,7 +360,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 			return
 		}
 
-		request := &idam.UserPasswordResetInitiationRequest{
+		request := &auth.UserPasswordResetInitiationRequest{
 			Email: email,
 		}
 
@@ -369,17 +369,17 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 		if err != nil {
 			errMessage := err.Error()
 
-			idamErr, ok := err.(*idam.ErrorResponse)
+			idamErr, ok := err.(*auth.ErrorResponse)
 
 			if ok {
 				switch idamErr.Code {
-				case idam.RequestValidationFailure:
+				case auth.RequestValidationFailure:
 					errMessage = "Request Validation Error"
 					alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage, idamErr.Details)
 					return
-				case idam.UserNotFound:
+				case auth.UserNotFound:
 					errMessage = "User Not Found"
-				case idam.UnhandledError:
+				case auth.UnhandledError:
 					errMessage = "An Unexpected Error Occurred"
 				}
 			}
@@ -478,10 +478,10 @@ func (mod *AuthModule) setupRegistrationPage() {
 			valResult = strval.ValidateStringWithName(password,
 				"Password",
 				strval.MustNotBeEmpty(),
-				strval.MustHaveMinLengthOf(idam.MinPasswordLength),
-				strval.MustHaveMaxLengthOf(idam.MaxPasswordLength),
-				strval.MustContainAtLeastOne([]rune(idam.AllowablePasswordSpecialCharacters)),
-				strval.MustNotContainAnyOf([]rune(idam.DisallowedPassowrdSpecialCharacters)),
+				strval.MustHaveMinLengthOf(auth.MinPasswordLength),
+				strval.MustHaveMaxLengthOf(auth.MaxPasswordLength),
+				strval.MustContainAtLeastOne([]rune(auth.AllowablePasswordSpecialCharacters)),
+				strval.MustNotContainAnyOf([]rune(auth.DisallowedPassowrdSpecialCharacters)),
 				strval.MustContainNumbers(),
 				strval.MustContainUppercaseLetter(),
 				strval.MustContainLowercaseLetter(),
@@ -530,7 +530,7 @@ func (mod *AuthModule) setupRegistrationPage() {
 				return
 			}
 
-			request := &idam.UserRegistrationRequest{
+			request := &auth.UserRegistrationRequest{
 				Email:    email,
 				Password: password,
 				Username: username,
@@ -541,17 +541,17 @@ func (mod *AuthModule) setupRegistrationPage() {
 			if err != nil {
 				errMessage := err.Error()
 
-				idamErr, ok := err.(*idam.ErrorResponse)
+				idamErr, ok := err.(*auth.ErrorResponse)
 
 				if ok {
 					switch idamErr.Code {
-					case idam.RequestValidationFailure:
+					case auth.RequestValidationFailure:
 						errMessage = "Registration Failed - Request Validation Error"
 						alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage, idamErr.Details)
 						return
-					case idam.InvalidCredentials:
+					case auth.InvalidCredentials:
 						errMessage = "Registration Failed - Invalid Credentials"
-					case idam.UnhandledError:
+					case auth.UnhandledError:
 						errMessage = "Registration Failed - An Unexpected Error Occurred"
 					}
 				}
