@@ -671,9 +671,9 @@ func (mod *HomeModule) setupChatPage() {
 							Content:      text,
 							SenderUserId: mod.appContext.UserSession.Info.Id,
 						})
-					}
 
-					textArea.SetText("", false)
+						textArea.SetText("", false)
+					}
 
 					return nil
 				} else if event.Key() == tcell.KeyEscape {
