@@ -673,6 +673,8 @@ func (mod *HomeModule) setupChatPage() {
 						})
 					}
 
+					textArea.SetText("", false)
+
 					return nil
 				} else if event.Key() == tcell.KeyEscape {
 					mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
