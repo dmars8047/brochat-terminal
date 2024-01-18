@@ -656,6 +656,8 @@ func (mod *HomeModule) setupChatPage() {
 				fmt.Fprintln(w, msgString)
 			}
 
+			textView.ScrollToEnd()
+
 			// Set the chat context
 			mod.appContext.ChatSession = state.NewChatSession(channel, mod.appContext.Context)
 
@@ -679,7 +681,7 @@ func (mod *HomeModule) setupChatPage() {
 				return event
 			})
 
-			go func(ch bro.ChannelManifest, cs *state.ChatSession, a *tview.Application, tv *tview.TextView, ta *tview.TextArea) {
+			go func(ch bro.ChannelManifest, cs *state.ChatSession, a *tview.Application, tv *tview.TextView) {
 				for {
 					select {
 					case <-cs.Context.Done():
@@ -701,12 +703,11 @@ func (mod *HomeModule) setupChatPage() {
 								msgString := fmt.Sprintf("%s [%s]: %s", senderUsername, dateString, msg.Content)
 								tv.Write([]byte(msgString + "\n"))
 								tv.ScrollToEnd()
-								ta.SetText("", false)
 							})
 						}
 					}
 				}
-			}(*channel, mod.appContext.ChatSession, mod.app, textView, textArea)
+			}(*channel, mod.appContext.ChatSession, mod.app, textView)
 		},
 		func() {
 			textView.Clear()

@@ -123,7 +123,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
-	tvVersionNumber.SetText("Version - v0.0.4")
+	tvVersionNumber.SetText("Version - v0.0.5")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
