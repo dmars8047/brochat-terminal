@@ -1,9 +1,11 @@
 package ui
 
 import (
+	"context"
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/dmars8047/strval"
@@ -13,23 +15,26 @@ import (
 
 type AuthModule struct {
 	userAuthClient *idam.UserAuthClient
-	appState       state.ApplicationState
+	appContext     *state.ApplicationContext
 	brochatClient  *chat.BroChatUserClient
 	pageNav        *PageNavigator
 	app            *tview.Application
+	feedClient     *feed.Client
 }
 
 func NewAuthModule(userAuthClient *idam.UserAuthClient,
 	brochatClient *chat.BroChatUserClient,
-	appState state.ApplicationState,
+	appContext *state.ApplicationContext,
 	pageNavigator *PageNavigator,
-	application *tview.Application) *AuthModule {
+	application *tview.Application,
+	feedClient *feed.Client) *AuthModule {
 	mod := AuthModule{
 		userAuthClient: userAuthClient,
-		appState:       appState,
+		appContext:     appContext,
 		brochatClient:  brochatClient,
 		pageNav:        pageNavigator,
 		app:            application,
+		feedClient:     feedClient,
 	}
 
 	return &mod
@@ -46,7 +51,7 @@ func (mod *AuthModule) setupWelcomePage() {
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
 
-	grid.SetRows(4, 8, 8, 0).
+	grid.SetRows(4, 8, 8, 1, 1, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
@@ -116,6 +121,11 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
+	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
+	tvVersionNumber.SetText("Version - v0.0.2")
+	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
+
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
 
 	buttonGrid.AddItem(loginButton, 0, 0, 1, 1, 0, 0, true).
@@ -125,7 +135,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	grid.AddItem(logoBro, 1, 1, 1, 1, 0, 0, false).
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
-		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
+		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true).
+		AddItem(tvVersionNumber, 4, 1, 1, 2, 0, 0, false)
 
 	mod.pageNav.Register(WELCOME_PAGE, grid, true, true, nil, nil)
 }
@@ -221,6 +232,8 @@ func (mod *AuthModule) setupLoginPage() {
 			return
 		}
 
+		sessionContext, sessionCancelFunc := context.WithCancel(mod.appContext.Context)
+
 		session := &state.UserSession{
 			Auth: state.UserAuth{
 				AccessToken:     loginResponse.Token,
@@ -230,33 +243,33 @@ func (mod *AuthModule) setupLoginPage() {
 				Id:       loginResponse.UserId,
 				Username: loginResponse.Username,
 			},
+			Context:    sessionContext,
+			CancelFunc: sessionCancelFunc,
 		}
 
-		state.Set(mod.appState, state.UserSessionProp, session)
-
-		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-		if !ok {
-			Alert(mod.pageNav.Pages, "auth:login:alert:err", "State error")
-			return
-		}
-
-		state.Set(mod.appState, state.UserSessionProp, ses)
+		mod.appContext.UserSession = session
 
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
 		brochatUser, err := mod.brochatClient.GetUser(&chat.AuthInfo{
-			AccessToken: ses.Auth.AccessToken,
+			AccessToken: session.Auth.AccessToken,
 			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-		}, ses.Info.Id)
+		}, session.Info.Id)
 
 		if err != nil {
 			Alert(mod.pageNav.Pages, "auth:login:alert:err", err.Error())
 			return
 		}
 
-		state.Set(mod.appState, state.BrochatUserInfo, brochatUser)
+		mod.appContext.BrochatUser = brochatUser
+
+		err = mod.feedClient.Connect(session.Auth, session.Context)
+
+		if err != nil {
+			Alert(mod.pageNav.Pages, "auth:login:alert:err", err.Error())
+			return
+		}
 
 		mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
 	})

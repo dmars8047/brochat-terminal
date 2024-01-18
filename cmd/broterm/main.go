@@ -1,14 +1,17 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/broterm/internal/ui"
 	"github.com/dmars8047/idam-service/pkg/idam"
+	"github.com/gorilla/websocket"
 	"github.com/rivo/tview"
 )
 
@@ -21,7 +24,17 @@ func main() {
 	}
 
 	brochatClient := chat.NewBroChatClient(httpClient, "https://dev.marshall-labs.com")
-	appState := state.NewApplicationState()
+
+	dialer := &websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+	}
+
+	context, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	appContext := state.NewApplicationContext(context)
+
+	feedClient := feed.NewFeedClient(dialer, "dev.marshall-labs.com")
 
 	app := tview.NewApplication()
 
@@ -30,10 +43,10 @@ func main() {
 
 	pageNav := ui.NewNavigator(pages)
 
-	homeModule := ui.NewHomeModule(userAuthClient, app, pageNav, brochatClient, appState)
+	homeModule := ui.NewHomeModule(userAuthClient, app, pageNav, brochatClient, appContext, feedClient)
 	homeModule.SetupHomePages()
 
-	authModule := ui.NewAuthModule(userAuthClient, brochatClient, appState, pageNav, app)
+	authModule := ui.NewAuthModule(userAuthClient, brochatClient, appContext, pageNav, app, feedClient)
 	authModule.SetupAuthPages()
 
 	// Start the application.

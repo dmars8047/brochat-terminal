@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
+	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idam-service/pkg/idam"
 	"github.com/gdamore/tcell/v2"
@@ -12,24 +13,27 @@ import (
 )
 
 type HomeModule struct {
-	appState       state.ApplicationState
+	appContext     *state.ApplicationContext
 	userAuthClient *idam.UserAuthClient
 	brochatClient  *chat.BroChatUserClient
 	pageNav        *PageNavigator
 	app            *tview.Application
+	feedClient     *feed.Client
 }
 
 func NewHomeModule(userAuthClient *idam.UserAuthClient,
 	application *tview.Application,
 	pageNavigator *PageNavigator,
 	brochatClient *chat.BroChatUserClient,
-	appState state.ApplicationState) *HomeModule {
+	appContext *state.ApplicationContext,
+	feedClient *feed.Client) *HomeModule {
 	return &HomeModule{
-		appState:       appState,
+		appContext:     appContext,
 		brochatClient:  brochatClient,
 		userAuthClient: userAuthClient,
 		app:            application,
 		pageNav:        pageNavigator,
+		feedClient:     feedClient,
 	}
 }
 
@@ -105,20 +109,15 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(ButtonStyle)
 
 	logoutButton.SetSelectedFunc(func() {
-		session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-		if !ok {
-			AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", "Application State Error - Could not get user session.")
-		}
-
-		err := mod.userAuthClient.Logout(session.Auth.AccessToken)
+		err := mod.userAuthClient.Logout(mod.appContext.UserSession.Auth.AccessToken)
 
 		if err != nil {
 			AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", err.Error())
 			return
 		}
 
-		state.Set(mod.appState, state.UserSessionProp, nil)
+		mod.appContext.UserSession.CancelFunc()
+		mod.appContext.UserSession = nil
 
 		mod.pageNav.NavigateTo(WELCOME_PAGE, nil)
 	})
@@ -185,17 +184,11 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	mod.pageNav.Register(HOME_MENU_PAGE, grid, true, false,
 		func(param interface{}) {
-			// Make a call to get the user
-			ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", "User Session Not Valid")
-			}
 
 			// Make sure the session is still valid
-			if ses.Auth.TokenExpiration.Before(time.Now()) {
-				state.Set(mod.appState, state.UserSessionProp, nil)
-				// Send user to the login page
+			if mod.appContext.UserSession.Auth.TokenExpiration.Before(time.Now()) {
+				mod.appContext.UserSession.CancelFunc()
+				mod.appContext.UserSession = nil
 				mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
 			}
 		}, nil)
@@ -289,24 +282,17 @@ func (mod *HomeModule) setupFriendListPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-				return
-			}
-
 			usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
-				AccessToken: session.Auth.AccessToken,
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, session.Info.Id)
+			}, mod.appContext.UserSession.Info.Id)
 
 			if err != nil {
 				AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())
 				return
 			}
 
-			state.Set(mod.appState, state.BrochatUserInfo, usr)
+			mod.appContext.BrochatUser = usr
 
 			countOfPendingFriendRequests := 0
 
@@ -373,15 +359,8 @@ func (mod *HomeModule) setupFindAFriendPage() {
 		}
 
 		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", uInfo.Username), func() {
-			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-				return
-			}
-
 			err := mod.brochatClient.SendFriendRequest(&chat.AuthInfo{
-				AccessToken: session.Auth.AccessToken,
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, &chat.SendFriendRequestRequest{
 				RequestedUserId: uInfo.ID,
@@ -447,15 +426,8 @@ func (mod *HomeModule) setupFindAFriendPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-				return
-			}
-
 			usrs, err := mod.brochatClient.GetUsers(&chat.AuthInfo{
-				AccessToken: session.Auth.AccessToken,
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, true, true, 1, 10, "")
 
@@ -502,15 +474,8 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 		}
 
 		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", rel.Username), func() {
-			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-				return
-			}
-
 			err := mod.brochatClient.AcceptFriendRequest(&chat.AuthInfo{
-				AccessToken: session.Auth.AccessToken,
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, &chat.AcceptFriendRequestRequest{
 				InitiatingUserId: rel.UserId,
@@ -576,14 +541,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			brochatUser, ok := state.Get[chat.User](mod.appState, state.BrochatUserInfo)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user info.")
-				return
-			}
-
-			for i, rel := range brochatUser.Relationships {
+			for i, rel := range mod.appContext.BrochatUser.Relationships {
 				row := i + 1
 
 				if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
@@ -618,29 +576,20 @@ func (mod *HomeModule) setupChatPage() {
 	textArea := tview.NewTextArea()
 	textArea.SetBorder(true)
 
-	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
-			text := textArea.GetText()
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetTextColor(tcell.ColorWhite)
 
-			if len(text) > 0 {
-				textView.Write([]byte(textArea.GetText() + "\n"))
-				textView.ScrollToEnd()
-				textArea.SetText("", false)
-			}
-
-			return nil
-		}
-
-		return event
-	})
+	tvInstructions.SetText("(enter) Send - (esc) Back")
 
 	grid := tview.NewGrid()
 
-	grid.SetRows(18, 6)
+	grid.SetRows(0, 6, 2)
 	grid.SetColumns(0)
 
 	grid.AddItem(textView, 0, 0, 1, 1, 0, 0, false)
 	grid.AddItem(textArea, 1, 0, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 2, 0, 1, 1, 0, 0, false)
 
 	mod.pageNav.Register(HOME_CHAT_PAGE, grid, true, false,
 		func(param interface{}) {
@@ -653,16 +602,9 @@ func (mod *HomeModule) setupChatPage() {
 				return
 			}
 
-			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-			if !ok {
-				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", "Application State Error - Could not get user session.")
-				return
-			}
-
 			// Get the channel
-			_, err := mod.brochatClient.GetChannelManifest(&chat.AuthInfo{
-				AccessToken: session.Auth.AccessToken,
+			channel, err := mod.brochatClient.GetChannelManifest(&chat.AuthInfo{
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, chatParams.channel_id)
 
@@ -670,9 +612,108 @@ func (mod *HomeModule) setupChatPage() {
 				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", err.Error())
 				return
 			}
+
+			textView.SetTitle(fmt.Sprintf(" %s - %s ", channel.Users[0].Username, channel.Users[1].Username))
+
+			// Get the channel messages
+			messages, err := mod.brochatClient.GetChannelMessages(&chat.AuthInfo{
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, chatParams.channel_id)
+
+			if err != nil {
+				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", err.Error())
+				return
+			}
+
+			// Write the messages to the text view
+			w := textView.BatchWriter()
+			defer w.Close()
+			w.Clear()
+
+			for i := len(messages) - 1; i >= 0; i-- {
+				// Write the messages to teh text view
+				var senderUsername string
+				var msg = messages[i]
+
+				for _, u := range channel.Users {
+					if u.ID == msg.SenderUserId {
+						senderUsername = u.Username
+						break
+					}
+				}
+
+				var dateString string
+
+				// If the message is from a date in the past (not today) then format the date string differently
+				if msg.RecievedAtUtc.Local().Day() == time.Now().Day() {
+					dateString = msg.RecievedAtUtc.Local().Format(time.Kitchen)
+				} else {
+					dateString = msg.RecievedAtUtc.Local().Format("Jan 2, 2006 3:04 PM")
+				}
+
+				msgString := fmt.Sprintf("%s [%s]: %s", senderUsername, dateString, msg.Content)
+				fmt.Fprintln(w, msgString)
+			}
+
+			// Set the chat context
+			mod.appContext.ChatSession = state.NewChatSession(channel, mod.appContext.Context)
+
+			textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+				if event.Key() == tcell.KeyEnter {
+					text := textArea.GetText()
+
+					if len(text) > 0 {
+						mod.feedClient.Send(chat.ChatMessage{
+							ChannelId:    channel.ID,
+							Content:      text,
+							SenderUserId: mod.appContext.UserSession.Info.Id,
+						})
+					}
+
+					return nil
+				} else if event.Key() == tcell.KeyEscape {
+					mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+				}
+
+				return event
+			})
+
+			go func(ch chat.ChannelManifest, cs *state.ChatSession, a *tview.Application, tv *tview.TextView, ta *tview.TextArea) {
+				for {
+					select {
+					case <-cs.Context.Done():
+						return
+					case msg := <-mod.feedClient.ChatMessageChannel:
+						if msg.ChannelId == ch.ID {
+							a.QueueUpdateDraw(func() {
+								var senderUsername string
+
+								for _, u := range ch.Users {
+									if u.ID == msg.SenderUserId {
+										senderUsername = u.Username
+										break
+									}
+								}
+
+								dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
+
+								msgString := fmt.Sprintf("%s [%s]: %s", senderUsername, dateString, msg.Content)
+								tv.Write([]byte(msgString + "\n"))
+								tv.ScrollToEnd()
+								ta.SetText("", false)
+							})
+						}
+					}
+				}
+			}(*channel, mod.appContext.ChatSession, mod.app, textView, textArea)
 		},
 		func() {
 			textView.Clear()
 			textArea.SetText("", false)
+			if mod.appContext.ChatSession != nil {
+				mod.appContext.ChatSession.CancelFunc()
+				mod.appContext.ChatSession = nil
+			}
 		})
 }
