@@ -1,6 +1,9 @@
 package ui
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -62,4 +65,21 @@ func AlertFatal(app *tview.Application, pages *tview.Pages, id string, message s
 		false,
 		true,
 	)
+}
+
+func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
+	added := false
+
+	for _, message := range messages {
+		if len(message) > 2 {
+			if !added {
+				errMessage += "\n"
+				added = true
+			}
+			val := strings.ToUpper(string(message[0])) + message[1:]
+			errMessage += fmt.Sprintf("\n- %s", val)
+		}
+	}
+
+	Alert(pages, id, errMessage)
 }

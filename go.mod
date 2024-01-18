@@ -3,7 +3,7 @@ module github.com/dmars8047/broterm
 go 1.20
 
 require (
-	github.com/dmars8047/brochat-service v1.0.7
+	github.com/dmars8047/brochat-service v1.0.8
 	github.com/dmars8047/idam-service v1.0.22
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.0

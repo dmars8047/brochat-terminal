@@ -1,8 +1,6 @@
 package ui
 
 import (
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/dmars8047/brochat-service/pkg/chat"
@@ -80,11 +78,11 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
  \______/ \__|  \__| \_______|  \____/`)
 
 	loginButton := tview.NewButton("Login").SetSelectedFunc(func() {
-		mod.pageNav.NavigateTo(LOGIN_PAGE)
+		mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
 	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
 
 	registrationButton := tview.NewButton("Register").SetSelectedFunc(func() {
-		mod.pageNav.NavigateTo(REGISTER_PAGE)
+		mod.pageNav.NavigateTo(REGISTER_PAGE, nil)
 	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
 
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
@@ -129,7 +127,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
 
-	mod.pageNav.Register(WELCOME_PAGE, grid, true, true, func() {})
+	mod.pageNav.Register(WELCOME_PAGE, grid, true, true, nil, nil)
 }
 
 func (mod *AuthModule) setupLoginPage() {
@@ -260,11 +258,11 @@ func (mod *AuthModule) setupLoginPage() {
 
 		state.Set(mod.appState, state.BrochatUserInfo, brochatUser)
 
-		mod.pageNav.NavigateTo(HOME_MENU_PAGE)
+		mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
 	})
 
 	loginForm.AddButton("Back", func() {
-		mod.pageNav.NavigateTo(WELCOME_PAGE)
+		mod.pageNav.NavigateTo(WELCOME_PAGE, nil)
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -276,7 +274,7 @@ func (mod *AuthModule) setupLoginPage() {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
 			case 'f':
-				mod.pageNav.NavigateTo(FORGOT_PW_PAGE)
+				mod.pageNav.NavigateTo(FORGOT_PW_PAGE, nil)
 			}
 		}
 
@@ -286,9 +284,9 @@ func (mod *AuthModule) setupLoginPage() {
 	grid.AddItem(loginForm, 1, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
-	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func() {
+	mod.pageNav.Register(LOGIN_PAGE, grid, true, false, func(param interface{}) {
 		loginForm.SetFocus(0)
-
+	}, func() {
 		emailInput, ok := loginForm.GetFormItemByLabel("Email").(*tview.InputField)
 
 		if !ok {
@@ -379,12 +377,12 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 
 		AlertWithDoneFunc(mod.pageNav.Pages, FORGOT_PW_MODAL_INFO, FORGOT_PW_SUCCESS_MESSAGE, func(buttonIndex int, buttonLabel string) {
 			mod.pageNav.Pages.HidePage(FORGOT_PW_MODAL_INFO).RemovePage(FORGOT_PW_MODAL_INFO)
-			mod.pageNav.NavigateTo(LOGIN_PAGE)
+			mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
 		})
 	})
 
 	forgotPWForm.AddButton("Back", func() {
-		mod.pageNav.NavigateTo(LOGIN_PAGE)
+		mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
@@ -395,17 +393,19 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 	grid.AddItem(forgotPWForm, 1, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
-	mod.pageNav.Register(FORGOT_PW_PAGE, grid, true, false, func() {
-		forgotPWForm.SetFocus(0)
+	mod.pageNav.Register(FORGOT_PW_PAGE, grid, true, false,
+		func(param interface{}) {
+			forgotPWForm.SetFocus(0)
+		},
+		func() {
+			emailInput, ok := forgotPWForm.GetFormItemByLabel("Email").(*tview.InputField)
 
-		emailInput, ok := forgotPWForm.GetFormItemByLabel("Email").(*tview.InputField)
+			if !ok {
+				panic("email input form clear failure")
+			}
 
-		if !ok {
-			panic("email input form clear failure")
-		}
-
-		emailInput.SetText("")
-	})
+			emailInput.SetText("")
+		})
 }
 
 const (
@@ -549,63 +549,48 @@ func (mod *AuthModule) setupRegistrationPage() {
 
 			AlertWithDoneFunc(mod.pageNav.Pages, REGISTRATION_MODAL_INFO, REGISTRATION_SUCCESS_MESSAGE, func(buttonIndex int, buttonLabel string) {
 				mod.pageNav.Pages.HidePage(REGISTRATION_MODAL_INFO).RemovePage(REGISTRATION_MODAL_INFO)
-				mod.pageNav.NavigateTo(WELCOME_PAGE)
+				mod.pageNav.NavigateTo(WELCOME_PAGE, nil)
 			})
 		}).
-		AddButton("Back", func() { mod.pageNav.NavigateTo(WELCOME_PAGE) })
+		AddButton("Back", func() { mod.pageNav.NavigateTo(WELCOME_PAGE, nil) })
 
 	grid.AddItem(registrationForm, 1, 1, 1, 1, 0, 0, true)
 
-	mod.pageNav.Register(REGISTER_PAGE, grid, true, false, func() {
-		registrationForm.SetFocus(0)
+	mod.pageNav.Register(REGISTER_PAGE, grid, true, false,
+		func(param interface{}) {
+			registrationForm.SetFocus(0)
+		},
+		func() {
+			emailInput, ok := registrationForm.GetFormItemByLabel("Email").(*tview.InputField)
 
-		emailInput, ok := registrationForm.GetFormItemByLabel("Email").(*tview.InputField)
-
-		if !ok {
-			panic("email input form clear failure")
-		}
-
-		emailInput.SetText("")
-
-		passwordInput, ok := registrationForm.GetFormItemByLabel("Password").(*tview.InputField)
-
-		if !ok {
-			panic("password input form clear failure")
-		}
-
-		passwordInput.SetText("")
-
-		confirmPasswordInput, ok := registrationForm.GetFormItemByLabel("Confirm Password").(*tview.InputField)
-
-		if !ok {
-			panic("confirm password input form clear failure")
-		}
-
-		confirmPasswordInput.SetText("")
-
-		usernameInput, ok := registrationForm.GetFormItemByLabel("Username").(*tview.InputField)
-
-		if !ok {
-			panic("username input form clear failure")
-		}
-
-		usernameInput.SetText("")
-	})
-}
-
-func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
-	added := false
-
-	for _, message := range messages {
-		if len(message) > 2 {
-			if !added {
-				errMessage += "\n"
-				added = true
+			if !ok {
+				panic("email input form clear failure")
 			}
-			val := strings.ToUpper(string(message[0])) + message[1:]
-			errMessage += fmt.Sprintf("\n- %s", val)
-		}
-	}
 
-	Alert(pages, id, errMessage)
+			emailInput.SetText("")
+
+			passwordInput, ok := registrationForm.GetFormItemByLabel("Password").(*tview.InputField)
+
+			if !ok {
+				panic("password input form clear failure")
+			}
+
+			passwordInput.SetText("")
+
+			confirmPasswordInput, ok := registrationForm.GetFormItemByLabel("Confirm Password").(*tview.InputField)
+
+			if !ok {
+				panic("confirm password input form clear failure")
+			}
+
+			confirmPasswordInput.SetText("")
+
+			usernameInput, ok := registrationForm.GetFormItemByLabel("Username").(*tview.InputField)
+
+			if !ok {
+				panic("username input form clear failure")
+			}
+
+			usernameInput.SetText("")
+		})
 }

@@ -38,6 +38,7 @@ func (mod *HomeModule) SetupHomePages() {
 	mod.setupFriendListPage()
 	mod.setupFindAFriendPage()
 	mod.setupAcceptPendingRequestPage()
+	mod.setupChatPage()
 }
 
 func (mod *HomeModule) setupMenuPage() {
@@ -80,7 +81,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(ButtonStyle)
 
 	brosButton.SetSelectedFunc(func() {
-		mod.pageNav.NavigateTo(HOME_FRIENDS_LIST_PAGE)
+		mod.pageNav.NavigateTo(HOME_FRIENDS_LIST_PAGE, nil)
 	})
 
 	chatButton := tview.NewButton("Chat").
@@ -119,7 +120,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 		state.Set(mod.appState, state.UserSessionProp, nil)
 
-		mod.pageNav.NavigateTo(WELCOME_PAGE)
+		mod.pageNav.NavigateTo(WELCOME_PAGE, nil)
 	})
 
 	buttonGrid := tview.NewGrid()
@@ -182,21 +183,22 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
 
-	mod.pageNav.Register(HOME_MENU_PAGE, grid, true, false, func() {
-		// Make a call to get the user
-		ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+	mod.pageNav.Register(HOME_MENU_PAGE, grid, true, false,
+		func(param interface{}) {
+			// Make a call to get the user
+			ses, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
 
-		if !ok {
-			AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", "User Session Not Valid")
-		}
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, "home:menu:alert:err", "User Session Not Valid")
+			}
 
-		// Make sure the session is still valid
-		if ses.Auth.TokenExpiration.Before(time.Now()) {
-			state.Set(mod.appState, state.UserSessionProp, nil)
-			// Send user to the login page
-			mod.pageNav.NavigateTo(LOGIN_PAGE)
-		}
-	})
+			// Make sure the session is still valid
+			if ses.Auth.TokenExpiration.Before(time.Now()) {
+				state.Set(mod.appState, state.UserSessionProp, nil)
+				// Send user to the login page
+				mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
+			}
+		}, nil)
 }
 
 const (
@@ -225,22 +227,24 @@ func (mod *HomeModule) setupFriendListPage() {
 			return
 		}
 
-		Alert(mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_INFO, fmt.Sprintf("Selected User: %s", rel.Username))
+		mod.pageNav.NavigateTo(HOME_CHAT_PAGE, ChatParams{
+			channel_id: rel.DirectMessageChannelId,
+		})
 	})
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
 			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE)
+				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
 				userFriends = make(map[uint8]chat.UserRelationship, 0)
 				table.Clear()
 			case 'f':
-				mod.pageNav.NavigateTo(HOME_FRIENDS_FINDER_PAGE)
+				mod.pageNav.NavigateTo(HOME_FRIENDS_FINDER_PAGE, nil)
 				userFriends = make(map[uint8]chat.UserRelationship, 0)
 				table.Clear()
 			case 'p':
-				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE)
+				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE, nil)
 				userFriends = make(map[uint8]chat.UserRelationship, 0)
 				table.Clear()
 			}
@@ -264,79 +268,81 @@ func (mod *HomeModule) setupFriendListPage() {
 	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
-	mod.pageNav.Register(HOME_FRIENDS_LIST_PAGE, grid, true, false, func() {
-		userFriends = make(map[uint8]chat.UserRelationship, 0)
-		table.Clear()
+	mod.pageNav.Register(HOME_FRIENDS_LIST_PAGE, grid, true, false,
+		func(param interface{}) {
+			table.SetCell(0, 0, tview.NewTableCell("Username").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetExpansion(1).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 0, tview.NewTableCell("Username").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignCenter).
-			SetExpansion(1).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			table.SetCell(0, 1, tview.NewTableCell("Status").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 1, tview.NewTableCell("Status").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignCenter).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			table.SetCell(0, 2, tview.NewTableCell("Last Active").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignRight).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 2, tview.NewTableCell("Last Active").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignRight).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
 
-		session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
-
-		if !ok {
-			AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-			return
-		}
-
-		usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
-			AccessToken: session.Auth.AccessToken,
-			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-		}, session.Info.Id)
-
-		if err != nil {
-			AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())
-			return
-		}
-
-		state.Set(mod.appState, state.BrochatUserInfo, usr)
-
-		countOfPendingFriendRequests := 0
-
-		for _, rel := range usr.Relationships {
-			if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
-				countOfPendingFriendRequests++
-			}
-		}
-
-		tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (q) Quit", countOfPendingFriendRequests))
-
-		for i, rel := range usr.Relationships {
-			row := i + 1
-
-			if rel.Type != chat.RELATIONSHIP_TYPE_FRIEND {
-				continue
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
+				return
 			}
 
-			table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-			if rel.IsOnline {
-				table.SetCell(row, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
-			} else {
-				table.SetCell(row, 1, tview.NewTableCell("Offline").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignCenter))
+			usr, err := mod.brochatClient.GetUser(&chat.AuthInfo{
+				AccessToken: session.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, session.Info.Id)
+
+			if err != nil {
+				AlertFatal(mod.app, mod.pageNav.Pages, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())
+				return
 			}
 
-			var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
+			state.Set(mod.appState, state.BrochatUserInfo, usr)
 
-			table.SetCell(row, 2, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+			countOfPendingFriendRequests := 0
 
-			userFriends[uint8(row)] = rel
-		}
-	})
+			for _, rel := range usr.Relationships {
+				if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+					countOfPendingFriendRequests++
+				}
+			}
+
+			tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (q) Quit", countOfPendingFriendRequests))
+
+			for i, rel := range usr.Relationships {
+				row := i + 1
+
+				if rel.Type != chat.RELATIONSHIP_TYPE_FRIEND {
+					continue
+				}
+
+				table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+				if rel.IsOnline {
+					table.SetCell(row, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+				} else {
+					table.SetCell(row, 1, tview.NewTableCell("Offline").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignCenter))
+				}
+
+				var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
+
+				table.SetCell(row, 2, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+
+				userFriends[uint8(row)] = rel
+			}
+		},
+		func() {
+			userFriends = make(map[uint8]chat.UserRelationship, 0)
+			table.Clear()
+		})
 }
 
 const (
@@ -402,7 +408,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
 			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE)
+				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
 				users = make(map[uint8]chat.UserInfo, 0)
 				table.Clear()
 			}
@@ -426,50 +432,52 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
-	mod.pageNav.Register(HOME_FRIENDS_FINDER_PAGE, grid, true, false, func() {
-		users = make(map[uint8]chat.UserInfo, 0)
-		table.Clear()
+	mod.pageNav.Register(HOME_FRIENDS_FINDER_PAGE, grid, true, false,
+		func(param interface{}) {
+			table.SetCell(0, 0, tview.NewTableCell("Username").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetExpansion(1).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 0, tview.NewTableCell("Username").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignCenter).
-			SetExpansion(1).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			table.SetCell(0, 1, tview.NewTableCell("Last Active").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignRight).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 1, tview.NewTableCell("Last Active").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignRight).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
 
-		session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
+				return
+			}
 
-		if !ok {
-			AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user session.")
-			return
-		}
+			usrs, err := mod.brochatClient.GetUsers(&chat.AuthInfo{
+				AccessToken: session.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, true, true, 1, 10, "")
 
-		usrs, err := mod.brochatClient.GetUsers(&chat.AuthInfo{
-			AccessToken: session.Auth.AccessToken,
-			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-		}, true, true, 1, 10, "")
+			if err != nil {
+				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())
+				return
+			}
 
-		if err != nil {
-			AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())
-			return
-		}
+			for i, usr := range usrs {
+				row := i + 1
 
-		for i, usr := range usrs {
-			row := i + 1
+				table.SetCell(row, 0, tview.NewTableCell(usr.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+				var dateString string = usr.LastOnlineUtc.Local().Format("Jan 2, 2006")
+				table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
 
-			table.SetCell(row, 0, tview.NewTableCell(usr.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-			var dateString string = usr.LastOnlineUtc.Local().Format("Jan 2, 2006")
-			table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
-
-			users[uint8(row)] = usr
-		}
-	})
+				users[uint8(row)] = usr
+			}
+		},
+		func() {
+			users = make(map[uint8]chat.UserInfo, 0)
+			table.Clear()
+		})
 }
 
 func (mod *HomeModule) setupAcceptPendingRequestPage() {
@@ -529,7 +537,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
 			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE)
+				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
 				userPendingRequests = make(map[uint8]chat.UserRelationship, 0)
 				table.Clear()
 			}
@@ -553,40 +561,118 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
-	mod.pageNav.Register(HOME_PENDING_REQUESTS_PAGE, grid, true, false, func() {
-		userPendingRequests = make(map[uint8]chat.UserRelationship)
-		table.Clear()
+	mod.pageNav.Register(HOME_PENDING_REQUESTS_PAGE, grid, true, false,
+		func(param interface{}) {
+			table.SetCell(0, 0, tview.NewTableCell("Username").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetExpansion(1).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 0, tview.NewTableCell("Username").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignCenter).
-			SetExpansion(1).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			table.SetCell(0, 1, tview.NewTableCell("Last Active").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignRight).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-		table.SetCell(0, 1, tview.NewTableCell("Last Active").
-			SetTextColor(tcell.ColorWhite).
-			SetAlign(tview.AlignRight).
-			SetSelectable(false).
-			SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+			brochatUser, ok := state.Get[chat.User](mod.appState, state.BrochatUserInfo)
 
-		brochatUser, ok := state.Get[chat.User](mod.appState, state.BrochatUserInfo)
-
-		if !ok {
-			AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user info.")
-			return
-		}
-
-		for i, rel := range brochatUser.Relationships {
-			row := i + 1
-
-			if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
-				table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-				var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
-				table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
-
-				userPendingRequests[uint8(row)] = rel
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_ERR, "Application State Error - Could not get user info.")
+				return
 			}
-		}
+
+			for i, rel := range brochatUser.Relationships {
+				row := i + 1
+
+				if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
+					table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+					var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
+					table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+
+					userPendingRequests[uint8(row)] = rel
+				}
+			}
+		},
+		func() {
+			userPendingRequests = make(map[uint8]chat.UserRelationship)
+			table.Clear()
+		})
+}
+
+type ChatParams struct {
+	channel_id string
+}
+
+func (mod *HomeModule) setupChatPage() {
+	textView := tview.NewTextView().
+		SetDynamicColors(true)
+	textView.SetBorder(true)
+	textView.SetScrollable(true)
+
+	textView.SetChangedFunc(func() {
+		mod.app.Draw()
 	})
+
+	textArea := tview.NewTextArea()
+	textArea.SetBorder(true)
+
+	textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEnter {
+			text := textArea.GetText()
+
+			if len(text) > 0 {
+				textView.Write([]byte(textArea.GetText() + "\n"))
+				textView.ScrollToEnd()
+				textArea.SetText("", false)
+			}
+
+			return nil
+		}
+
+		return event
+	})
+
+	grid := tview.NewGrid()
+
+	grid.SetRows(18, 6)
+	grid.SetColumns(0)
+
+	grid.AddItem(textView, 0, 0, 1, 1, 0, 0, false)
+	grid.AddItem(textArea, 1, 0, 1, 1, 0, 0, true)
+
+	mod.pageNav.Register(HOME_CHAT_PAGE, grid, true, false,
+		func(param interface{}) {
+
+			// The param should be a ChatParams struct
+			chatParams, ok := param.(ChatParams)
+
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", "Application State Error - Could not get chat params.")
+				return
+			}
+
+			session, ok := state.Get[state.UserSession](mod.appState, state.UserSessionProp)
+
+			if !ok {
+				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", "Application State Error - Could not get user session.")
+				return
+			}
+
+			// Get the channel
+			_, err := mod.brochatClient.GetChannelManifest(&chat.AuthInfo{
+				AccessToken: session.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, chatParams.channel_id)
+
+			if err != nil {
+				AlertFatal(mod.app, mod.pageNav.Pages, "home:chat:alert:err", err.Error())
+				return
+			}
+		},
+		func() {
+			textView.Clear()
+			textArea.SetText("", false)
+		})
 }
