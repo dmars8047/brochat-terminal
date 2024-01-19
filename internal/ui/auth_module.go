@@ -123,7 +123,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
-	tvVersionNumber.SetText("Version - v0.0.7")
+	tvVersionNumber.SetText("Version - v0.0.8")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
@@ -423,7 +423,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 const (
 	REGISTRATION_MODAL_INFO      = "auth:register:alert:info"
 	REGISTRATION_MODAL_ERR       = "auth:register:alert:err"
-	REGISTRATION_SUCCESS_MESSAGE = "Registration Successful. A verification email has been sent to the email address provided."
+	REGISTRATION_SUCCESS_MESSAGE = "A verification email has been sent to the email address provided. Please check your email to verify your account."
 )
 
 func (mod *AuthModule) setupRegistrationPage() {
