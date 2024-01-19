@@ -17,6 +17,7 @@ var (
 	BroChatYellowColor     = tcell.NewHexColor(BroChatYellowColorCode)
 	DefaultBackgroundColor = tcell.NewHexColor(DefaultBackgroundColorCode)
 	AccentBackgroundColor  = tcell.NewHexColor(AccentColorFourColorCode)
+	AccentColorTwoColor    = tcell.NewHexColor(AccentColorTwoColorCode)
 	ButtonStyle            = tcell.StyleDefault.Background(tcell.NewHexColor(AccentColorTwoColorCode)).Foreground(tcell.ColorWhite)
 	ActivatedButtonStyle   = tcell.StyleDefault.Background(tcell.NewHexColor(0xFFC300)).Foreground(tcell.ColorBlack)
 )

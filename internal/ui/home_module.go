@@ -93,7 +93,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(ButtonStyle)
 
 	chatButton.SetSelectedFunc(func() {
-		Alert(mod.pageNav.Pages, "home:menu:alert:info", "You pressed the chat button")
+		Alert(mod.pageNav.Pages, "home:menu:alert:info", "Chat Servers Not Implemented Yet")
 	})
 
 	settingsButton := tview.NewButton("Settings").
@@ -101,7 +101,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(ButtonStyle)
 
 	settingsButton.SetSelectedFunc(func() {
-		Alert(mod.pageNav.Pages, "home:menu:alert:info", "You pressed the settings button")
+		Alert(mod.pageNav.Pages, "home:menu:alert:info", "Settings Not Implemented Yet")
 	})
 
 	logoutButton := tview.NewButton("Logout").
@@ -228,19 +228,19 @@ func (mod *HomeModule) setupFriendListPage() {
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyRune {
 			switch event.Rune() {
-			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			case 'p':
+				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE, nil)
 				userFriends = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
 			case 'f':
 				mod.pageNav.NavigateTo(HOME_FRIENDS_FINDER_PAGE, nil)
 				userFriends = make(map[uint8]bro.UserRelationship, 0)
 				table.Clear()
-			case 'p':
-				mod.pageNav.NavigateTo(HOME_PENDING_REQUESTS_PAGE, nil)
-				userFriends = make(map[uint8]bro.UserRelationship, 0)
-				table.Clear()
 			}
+		} else if event.Key() == tcell.KeyEscape {
+			mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			userFriends = make(map[uint8]bro.UserRelationship, 0)
+			table.Clear()
 		}
 
 		return event
@@ -249,7 +249,7 @@ func (mod *HomeModule) setupFriendListPage() {
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
-	tvInstructions.SetText("(f) Find a new Bro - (p) View Pending - (q) Quit")
+	tvInstructions.SetText("(f) Find a new Bro - (p) View Pending - (esc) Quit")
 
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
@@ -302,7 +302,7 @@ func (mod *HomeModule) setupFriendListPage() {
 				}
 			}
 
-			tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (q) Quit", countOfPendingFriendRequests))
+			tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (esc) Quit", countOfPendingFriendRequests))
 
 			for i, rel := range usr.Relationships {
 				row := i + 1
@@ -384,13 +384,10 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	})
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyRune {
-			switch event.Rune() {
-			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
-				users = make(map[uint8]bro.UserInfo, 0)
-				table.Clear()
-			}
+		if event.Key() == tcell.KeyEscape {
+			mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			users = make(map[uint8]bro.UserInfo, 0)
+			table.Clear()
 		}
 
 		return event
@@ -399,7 +396,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
-	tvInstructions.SetText("(q) Quit")
+	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)
@@ -499,13 +496,10 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	})
 
 	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyRune {
-			switch event.Rune() {
-			case 'q':
-				mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
-				userPendingRequests = make(map[uint8]bro.UserRelationship, 0)
-				table.Clear()
-			}
+		if event.Key() == tcell.KeyEscape {
+			mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			userPendingRequests = make(map[uint8]bro.UserRelationship, 0)
+			table.Clear()
 		}
 
 		return event
@@ -514,7 +508,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
-	tvInstructions.SetText("(q) Quit")
+	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DefaultBackgroundColor)

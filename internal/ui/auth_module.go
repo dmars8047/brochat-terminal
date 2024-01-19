@@ -123,7 +123,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
-	tvVersionNumber.SetText("Version - v0.0.6")
+	tvVersionNumber.SetText("Version - v0.0.7")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
@@ -149,13 +149,12 @@ func (mod *AuthModule) setupLoginPage() {
 
 	loginForm := tview.NewForm()
 	loginForm.SetBackgroundColor(AccentBackgroundColor)
-	loginForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
+	loginForm.SetFieldBackgroundColor(AccentColorTwoColor)
 	loginForm.SetLabelColor(BroChatYellowColor)
 	loginForm.SetBorder(true).SetTitle(" BroChat - Login ").SetTitleAlign(tview.AlignCenter)
 	loginForm.SetButtonStyle(ButtonStyle)
 	loginForm.SetButtonActivatedStyle(ActivatedButtonStyle)
 	loginForm.AddInputField("Email", "", 0, nil, nil)
-
 	loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
 	loginForm.AddButton("Login", func() {
@@ -333,7 +332,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 
 	forgotPWForm := tview.NewForm()
 	forgotPWForm.SetBackgroundColor(AccentBackgroundColor)
-	forgotPWForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
+	forgotPWForm.SetFieldBackgroundColor(AccentColorTwoColor)
 	forgotPWForm.SetLabelColor(BroChatYellowColor)
 	forgotPWForm.SetBorder(true).SetTitle(FORGOT_PW_TITLE).SetTitleAlign(tview.AlignCenter)
 	forgotPWForm.SetButtonStyle(ButtonStyle)
@@ -437,7 +436,7 @@ func (mod *AuthModule) setupRegistrationPage() {
 	registrationForm := tview.NewForm()
 	registrationForm.SetBorder(true).SetTitle(" BroChat - Register ").SetTitleAlign(tview.AlignCenter)
 	registrationForm.SetBackgroundColor(AccentBackgroundColor)
-	registrationForm.SetFieldBackgroundColor(AccentColorTwoColorCode)
+	registrationForm.SetFieldBackgroundColor(AccentColorTwoColor)
 	registrationForm.SetButtonStyle(ButtonStyle)
 	registrationForm.SetButtonActivatedStyle(ActivatedButtonStyle)
 
