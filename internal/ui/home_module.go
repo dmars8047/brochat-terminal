@@ -629,9 +629,15 @@ func (mod *HomeModule) setupChatPage() {
 			w.Clear()
 
 			for i := len(messages) - 1; i >= 0; i-- {
-				// Write the messages to teh text view
+				// Write the messages to the text view
 				var senderUsername string
 				var msg = messages[i]
+
+				color := "#C061CB"
+
+				if msg.SenderUserId == mod.appContext.UserSession.Info.Id {
+					color = "#33DA7A"
+				}
 
 				for _, u := range channel.Users {
 					if u.ID == msg.SenderUserId {
@@ -649,7 +655,7 @@ func (mod *HomeModule) setupChatPage() {
 					dateString = msg.RecievedAtUtc.Local().Format("Jan 2, 2006 3:04 PM")
 				}
 
-				msgString := fmt.Sprintf("%s [%s]: %s", senderUsername, dateString, msg.Content)
+				msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
 				fmt.Fprintln(w, msgString)
 			}
 
@@ -689,6 +695,11 @@ func (mod *HomeModule) setupChatPage() {
 						if msg.ChannelId == ch.ID {
 							a.QueueUpdateDraw(func() {
 								var senderUsername string
+								color := "#C061CB"
+
+								if msg.SenderUserId == mod.appContext.UserSession.Info.Id {
+									color = "#33DA7A"
+								}
 
 								for _, u := range ch.Users {
 									if u.ID == msg.SenderUserId {
@@ -699,7 +710,7 @@ func (mod *HomeModule) setupChatPage() {
 
 								dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
 
-								msgString := fmt.Sprintf("%s [%s]: %s", senderUsername, dateString, msg.Content)
+								msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
 								tv.Write([]byte(msgString + "\n"))
 								tv.ScrollToEnd()
 							})
