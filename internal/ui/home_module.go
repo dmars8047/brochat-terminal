@@ -562,12 +562,14 @@ func (mod *HomeModule) setupChatPage() {
 		SetDynamicColors(true)
 	textView.SetBorder(true)
 	textView.SetScrollable(true)
+	textView.SetBackgroundColor(DefaultBackgroundColor)
 
 	textView.SetChangedFunc(func() {
 		mod.app.Draw()
 	})
 
 	textArea := tview.NewTextArea()
+	textArea.SetTextStyle(tcell.StyleDefault.Background(DefaultBackgroundColor))
 	textArea.SetBorder(true)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
