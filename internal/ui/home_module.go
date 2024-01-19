@@ -571,6 +571,7 @@ func (mod *HomeModule) setupChatPage() {
 	textArea := tview.NewTextArea()
 	textArea.SetTextStyle(tcell.StyleDefault.Background(DefaultBackgroundColor))
 	textArea.SetBorder(true)
+	textArea.SetBackgroundColor(DefaultBackgroundColor)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
