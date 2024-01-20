@@ -2,6 +2,8 @@ module github.com/dmars8047/broterm
 
 go 1.20
 
+retract v1.0.7
+
 require (
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.0
