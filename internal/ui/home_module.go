@@ -352,26 +352,26 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	table.SetSelectable(true, false)
 
 	table.SetSelectedFunc(func(row int, _ int) {
-		uInfo, ok := users[uint8(row)]
+		selectedUser, ok := users[uint8(row)]
 
 		if !ok {
 			return
 		}
 
-		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", uInfo.Username), func() {
+		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", selectedUser.Username), func() {
 			err := mod.brochatClient.SendFriendRequest(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, &bro.SendFriendRequestRequest{
-				RequestedUserId: uInfo.ID,
+				RequestedUserId: selectedUser.ID,
 			})
 
 			if err != nil {
 				if err.Error() == "friend request already exists or users are already a friend" {
-					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Already Sent to %s", uInfo.Username))
+					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Already Sent to %s", selectedUser.Username))
 					return
 				} else if err.Error() == "user not found" {
-					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("User %s Not Found", uInfo.Username))
+					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("User %s Not Found", selectedUser.Username))
 					return
 				}
 
@@ -379,7 +379,21 @@ func (mod *HomeModule) setupFindAFriendPage() {
 				return
 			}
 
-			Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Sent to %s", uInfo.Username))
+			// Update the relationship type
+			for i := 0; i < len(mod.appContext.BrochatUser.Relationships); i++ {
+				if selectedUser.ID == mod.appContext.BrochatUser.Relationships[i].UserId {
+					existingRelationshipType := mod.appContext.BrochatUser.Relationships[i].Type
+
+					if existingRelationshipType == bro.RELATIONSHIP_TYPE_DEFAULT {
+						mod.appContext.BrochatUser.Relationships[i].Type = bro.RELATIONSHIP_TYPE_FRIENDSHIP_REQUESTED
+					} else {
+						mod.appContext.BrochatUser.Relationships[i].Type = existingRelationshipType | bro.RELATIONSHIP_TYPE_FRIENDSHIP_REQUESTED
+					}
+					break
+				}
+			}
+
+			Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Sent to %s", selectedUser.Username))
 		})
 	})
 
@@ -464,23 +478,23 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	userPendingRequests := make(map[uint8]bro.UserRelationship, 0)
 
 	table.SetSelectedFunc(func(row int, _ int) {
-		rel, ok := userPendingRequests[uint8(row)]
+		selectedUser, ok := userPendingRequests[uint8(row)]
 
 		if !ok {
 			return
 		}
 
-		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", rel.Username), func() {
+		Confirm(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", selectedUser.Username), func() {
 			err := mod.brochatClient.AcceptFriendRequest(&bro.AuthInfo{
 				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 			}, &bro.AcceptFriendRequestRequest{
-				InitiatingUserId: rel.UserId,
+				InitiatingUserId: selectedUser.UserId,
 			})
 
 			if err != nil {
 				if err.Error() == "user not found or friend request not found" {
-					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request from %s Not Found", rel.Username))
+					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request from %s Not Found", selectedUser.Username))
 					return
 				} else if err.Error() == "bad request" {
 					Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, "Friend Request Acceptance Not Processable")
@@ -491,7 +505,16 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 				return
 			}
 
-			Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Accepted Friend Request from %s", rel.Username))
+			// Update the relationship type
+			for i := 0; i < len(mod.appContext.BrochatUser.Relationships); i++ {
+				if selectedUser.UserId == mod.appContext.BrochatUser.Relationships[i].UserId {
+					mod.appContext.BrochatUser.Relationships[i].Type = bro.RELATIONSHIP_TYPE_FRIEND
+					break
+				}
+			}
+
+			table.RemoveRow(row)
+			Alert(mod.pageNav.Pages, FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Accepted Friend Request from %s", selectedUser.Username))
 		})
 	})
 

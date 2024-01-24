@@ -271,15 +271,13 @@ func (mod *AuthModule) setupLoginPage() {
 		}
 
 		go func(ctx *state.ApplicationContext, pageNav *PageNavigator) {
-			for {
-				select {
-				case <-ctx.UserSession.Context.Done():
-					return
-				case <-time.After(time.Until(ctx.UserSession.Auth.TokenExpiration)):
-					ctx.UserSession.CancelFunc()
-					pageNav.NavigateTo(LOGIN_PAGE, nil)
-					return
-				}
+			select {
+			case <-ctx.UserSession.Context.Done():
+				return
+			case <-time.After(time.Until(ctx.UserSession.Auth.TokenExpiration)):
+				ctx.UserSession.CancelFunc()
+				pageNav.NavigateTo(LOGIN_PAGE, nil)
+				return
 			}
 		}(mod.appContext, mod.pageNav)
 
