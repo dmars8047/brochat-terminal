@@ -123,7 +123,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
-	tvVersionNumber.SetText("Version - v0.0.10")
+	tvVersionNumber.SetText("Version - v0.0.11")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
@@ -290,15 +290,12 @@ func (mod *AuthModule) setupLoginPage() {
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
-	tvInstructions.SetText("(f) Forgot Password?")
+	tvInstructions.SetText("(CTRL + F) Forgot Password?")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	loginForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyRune {
-			switch event.Rune() {
-			case 'f':
-				mod.pageNav.NavigateTo(FORGOT_PW_PAGE, nil)
-			}
+		if event.Key() == tcell.KeyCtrlF {
+			mod.pageNav.NavigateTo(FORGOT_PW_PAGE, nil)
 		}
 
 		return event
