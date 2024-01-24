@@ -558,15 +558,16 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 				SetSelectable(false).
 				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-			for i, rel := range mod.appContext.BrochatUser.Relationships {
-				row := i + 1
+			row := 1
 
+			for _, rel := range mod.appContext.BrochatUser.Relationships {
 				if rel.Type&bro.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
 					table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
 					var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
 					table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
 
 					userPendingRequests[uint8(row)] = rel
+					row++
 				}
 			}
 		},
