@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/dmars8047/broterm/internal/auth"
-	"github.com/dmars8047/broterm/internal/bro"
+	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/broterm/internal/ui"
+	"github.com/dmars8047/idamlib/idam"
 	"github.com/gorilla/websocket"
 	"github.com/rivo/tview"
 )
@@ -21,9 +21,9 @@ func main() {
 	}
 
 	// Setup idam user auth client
-	userAuthClient := auth.NewUserAuthClient(httpClient, "https://dev.marshall-labs.com")
+	userAuthClient := idam.NewUserAuthClient(httpClient, "http://localhost:8083")
 
-	brochatClient := bro.NewBroChatClient(httpClient, "https://dev.marshall-labs.com")
+	brochatClient := chat.NewBroChatClient(httpClient, "http://localhost:8083")
 
 	dialer := &websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
@@ -34,7 +34,7 @@ func main() {
 
 	appContext := state.NewApplicationContext(context)
 
-	feedClient := feed.NewFeedClient(dialer, "dev.marshall-labs.com")
+	feedClient := feed.NewFeedClient(dialer, "localhost:8083")
 
 	app := tview.NewApplication()
 

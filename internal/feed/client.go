@@ -8,21 +8,21 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/dmars8047/broterm/internal/bro"
+	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/gorilla/websocket"
 )
 
 const (
 	feedSuffix = "/api/brochat/connect"
-	feedScheme = "wss"
+	feedScheme = "ws"
 )
 
 type Client struct {
 	dialer             *websocket.Dialer
 	url                url.URL
 	conn               *websocket.Conn
-	ChatMessageChannel chan bro.ChatMessage
+	ChatMessageChannel chan chat.ChatMessage
 	Connected          bool
 }
 
@@ -30,12 +30,12 @@ func NewFeedClient(dialer *websocket.Dialer, baseUrl string) *Client {
 	return &Client{
 		dialer:             dialer,
 		url:                url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
-		ChatMessageChannel: make(chan bro.ChatMessage, 1),
+		ChatMessageChannel: make(chan chat.ChatMessage, 1),
 	}
 }
 
 func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
-	c.ChatMessageChannel = make(chan bro.ChatMessage, 1)
+	c.ChatMessageChannel = make(chan chat.ChatMessage, 1)
 
 	headers := http.Header{}
 	headers.Add("Authorization", "Bearer "+userAuth.AccessToken)
@@ -65,14 +65,26 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 
 			switch messageType {
 			case websocket.TextMessage:
-				var chatMessage bro.ChatMessage
-				msgErr := json.Unmarshal(message, &chatMessage)
+				var feedMessage chat.FeedMessage
+				msgErr := json.Unmarshal(message, &feedMessage)
 
 				if msgErr != nil {
+					// TODO: figure out what to do with these errors.
 					continue
 				}
 
-				c.ChatMessageChannel <- chatMessage
+				switch feedMessage.Type {
+				case chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE:
+					var chatMessage chat.ChatMessage
+
+					chtMsgErr := json.Unmarshal(feedMessage.Content, &chatMessage)
+
+					if chtMsgErr != nil {
+						continue
+					}
+
+					c.ChatMessageChannel <- chatMessage
+				}
 			}
 		}
 	}()
@@ -93,10 +105,16 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) Send(message bro.ChatMessage) error {
+func (c *Client) SendChatMessage(message chat.ChatMessage) error {
 	if !c.Connected || c.conn == nil {
-		return errors.New("not connected")
+		return errors.New("feed connection failure")
 	}
 
-	return c.conn.WriteJSON(message)
+	feedMessage, err := chat.NewFeedMessageJSON(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE, message)
+
+	if err != nil {
+		return err
+	}
+
+	return c.conn.WriteJSON(feedMessage)
 }

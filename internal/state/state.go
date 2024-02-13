@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dmars8047/broterm/internal/bro"
+	"github.com/dmars8047/brolib/chat"
 )
 
 type Property = string
@@ -13,7 +13,7 @@ type ApplicationContext struct {
 	// The context for the application
 	Context     context.Context
 	UserSession *UserSession
-	BrochatUser *bro.User
+	BrochatUser *chat.User
 	ChatSession *ChatSession
 }
 
@@ -41,12 +41,12 @@ type UserAuth struct {
 }
 
 type ChatSession struct {
-	Channel    *bro.ChannelManifest
+	Channel    *chat.Channel
 	Context    context.Context
 	CancelFunc context.CancelFunc
 }
 
-func NewChatSession(channel *bro.ChannelManifest, ctx context.Context) *ChatSession {
+func NewChatSession(channel *chat.Channel, ctx context.Context) *ChatSession {
 	context, cancel := context.WithCancel(ctx)
 
 	return &ChatSession{

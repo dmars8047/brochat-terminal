@@ -1,3 +1,7 @@
+github.com/dmars8047/brolib v0.0.3 h1:vYkZin4N7yQUt7CIBMG0EDHW9gEv6zJ2thzTxQ8FqJ8=
+github.com/dmars8047/brolib v0.0.3/go.mod h1:O3duQcJhrDq9YY3DdpxUz3tNlq5LmoaNBKavXl2x8Og=
+github.com/dmars8047/idamlib v0.0.2 h1:1E8UefT0XTl8YF47iR7k35+bmQfRop2k7q8LqWqsjRc=
+github.com/dmars8047/idamlib v0.0.2/go.mod h1:iAAgP8Yw6QzpIm6fN5731SASqMkZORoShkUPGwO2C7s=
 github.com/dmars8047/strval v1.0.1 h1:N6UBFAyd4WpPx8bZT7y8vTns5nCMv0JBGFnWhK+cV/k=
 github.com/dmars8047/strval v1.0.1/go.mod h1:8zmiNQZqJHXfuQTuaC70vmLsq/xFni86NLvamvtsBDU=
 github.com/gdamore/encoding v1.0.0 h1:+7OoQ1Bc6eTm5niUzBa0Ctsh6JbMW6Ra+YNuAtDBdko=

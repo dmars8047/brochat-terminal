@@ -4,26 +4,26 @@ import (
 	"context"
 	"time"
 
-	"github.com/dmars8047/broterm/internal/auth"
-	"github.com/dmars8047/broterm/internal/bro"
+	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/idamlib/idam"
 	"github.com/dmars8047/strval"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
 type AuthModule struct {
-	userAuthClient *auth.UserAuthClient
+	userAuthClient *idam.UserAuthClient
 	appContext     *state.ApplicationContext
-	brochatClient  *bro.BroChatUserClient
+	brochatClient  *chat.BroChatUserClient
 	pageNav        *PageNavigator
 	app            *tview.Application
 	feedClient     *feed.Client
 }
 
-func NewAuthModule(userAuthClient *auth.UserAuthClient,
-	brochatClient *bro.BroChatUserClient,
+func NewAuthModule(userAuthClient *idam.UserAuthClient,
+	brochatClient *chat.BroChatUserClient,
 	appContext *state.ApplicationContext,
 	pageNavigator *PageNavigator,
 	application *tview.Application,
@@ -200,7 +200,7 @@ func (mod *AuthModule) setupLoginPage() {
 			return
 		}
 
-		request := &auth.UserLoginRequest{
+		request := &idam.UserLoginRequest{
 			Email:    email,
 			Password: password,
 		}
@@ -210,19 +210,21 @@ func (mod *AuthModule) setupLoginPage() {
 		if err != nil {
 			errMessage := err.Error()
 
-			idamErr, ok := err.(*auth.ErrorResponse)
+			idamErr, ok := err.(*idam.ErrorResponse)
 
 			if ok {
 				switch idamErr.Code {
-				case auth.RequestValidationFailure:
+				case idam.RequestValidationFailure:
 					errMessage = "Login Failed - Request Validation Error"
 					alertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
 					return
-				case auth.UserNotFound:
+				case idam.UserNotFound:
 					errMessage = "Login Failed - User Not Found"
-				case auth.InvalidCredentials:
+				case idam.InvalidCredentials:
 					errMessage = "Login Failed - Invalid Credentials"
-				case auth.UnhandledError:
+				case idam.UserAccountLockout:
+					errMessage = "User Account Lockout - Too Many Failed Login Requests"
+				case idam.UnhandledError:
 					errMessage = "Login Failed - An Unexpected Error Occurred"
 				}
 			}
@@ -251,7 +253,7 @@ func (mod *AuthModule) setupLoginPage() {
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		brochatUser, err := mod.brochatClient.GetUser(&bro.AuthInfo{
+		brochatUser, err := mod.brochatClient.GetUser(&chat.AuthInfo{
 			AccessToken: session.Auth.AccessToken,
 			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 		}, session.Info.Id)
@@ -367,7 +369,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 			return
 		}
 
-		request := &auth.UserPasswordResetInitiationRequest{
+		request := &idam.UserPasswordResetInitiationRequest{
 			Email: email,
 		}
 
@@ -376,17 +378,17 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 		if err != nil {
 			errMessage := err.Error()
 
-			idamErr, ok := err.(*auth.ErrorResponse)
+			idamErr, ok := err.(*idam.ErrorResponse)
 
 			if ok {
 				switch idamErr.Code {
-				case auth.RequestValidationFailure:
+				case idam.RequestValidationFailure:
 					errMessage = "Request Validation Error"
 					alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage, idamErr.Details)
 					return
-				case auth.UserNotFound:
+				case idam.UserNotFound:
 					errMessage = "User Not Found"
-				case auth.UnhandledError:
+				case idam.UnhandledError:
 					errMessage = "An Unexpected Error Occurred"
 				}
 			}
@@ -485,10 +487,10 @@ func (mod *AuthModule) setupRegistrationPage() {
 			valResult = strval.ValidateStringWithName(password,
 				"Password",
 				strval.MustNotBeEmpty(),
-				strval.MustHaveMinLengthOf(auth.MinPasswordLength),
-				strval.MustHaveMaxLengthOf(auth.MaxPasswordLength),
-				strval.MustContainAtLeastOne([]rune(auth.AllowablePasswordSpecialCharacters)),
-				strval.MustNotContainAnyOf([]rune(auth.DisallowedPassowrdSpecialCharacters)),
+				strval.MustHaveMinLengthOf(idam.MinPasswordLength),
+				strval.MustHaveMaxLengthOf(idam.MaxPasswordLength),
+				strval.MustContainAtLeastOne([]rune(idam.AllowablePasswordSpecialCharacters)),
+				strval.MustNotContainAnyOf([]rune(idam.DisallowedPassowrdSpecialCharacters)),
 				strval.MustContainNumbers(),
 				strval.MustContainUppercaseLetter(),
 				strval.MustContainLowercaseLetter(),
@@ -537,7 +539,7 @@ func (mod *AuthModule) setupRegistrationPage() {
 				return
 			}
 
-			request := &auth.UserRegistrationRequest{
+			request := &idam.UserRegistrationRequest{
 				Email:    email,
 				Password: password,
 				Username: username,
@@ -548,17 +550,17 @@ func (mod *AuthModule) setupRegistrationPage() {
 			if err != nil {
 				errMessage := err.Error()
 
-				idamErr, ok := err.(*auth.ErrorResponse)
+				idamErr, ok := err.(*idam.ErrorResponse)
 
 				if ok {
 					switch idamErr.Code {
-					case auth.RequestValidationFailure:
+					case idam.RequestValidationFailure:
 						errMessage = "Registration Failed - Request Validation Error"
 						alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage, idamErr.Details)
 						return
-					case auth.InvalidCredentials:
+					case idam.InvalidCredentials:
 						errMessage = "Registration Failed - Invalid Credentials"
-					case auth.UnhandledError:
+					case idam.UnhandledError:
 						errMessage = "Registration Failed - An Unexpected Error Occurred"
 					}
 				}

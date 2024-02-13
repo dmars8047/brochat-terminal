@@ -1,15 +1,17 @@
 module github.com/dmars8047/broterm
 
-go 1.20
+go 1.22.0
 
 retract (
-    v1.0.7
-    v1.0.8
-    v1.0.9
-    v1.0.10
+	v1.0.10
+	v1.0.9
+	v1.0.8
+	v1.0.7
 )
 
 require (
+	github.com/dmars8047/brolib v0.0.3
+	github.com/dmars8047/idamlib v0.0.2
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.0
 	github.com/gorilla/websocket v1.5.1
