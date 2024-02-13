@@ -105,12 +105,12 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 	return nil
 }
 
-func (c *Client) SendChatMessage(message chat.ChatMessage) error {
+func (c *Client) SendFeedMessage(messageType chat.FeedMessageType, content interface{}) error {
 	if !c.Connected || c.conn == nil {
 		return errors.New("feed connection failure")
 	}
 
-	feedMessage, err := chat.NewFeedMessageJSON(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE, message)
+	feedMessage, err := chat.NewFeedMessageJSON(messageType, content)
 
 	if err != nil {
 		return err

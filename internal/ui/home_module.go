@@ -688,12 +688,16 @@ func (mod *HomeModule) setupChatPage() {
 			// Set the chat context
 			mod.appContext.ChatSession = state.NewChatSession(channel, mod.appContext.Context)
 
+			mod.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
+				ChannelId: channel.Id,
+			})
+
 			textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 				if event.Key() == tcell.KeyEnter {
 					text := textArea.GetText()
 
 					if len(text) > 0 {
-						mod.feedClient.SendChatMessage(chat.ChatMessage{
+						mod.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessage{
 							ChannelId:    channel.Id,
 							Content:      text,
 							SenderUserId: mod.appContext.UserSession.Info.Id,
@@ -746,6 +750,11 @@ func (mod *HomeModule) setupChatPage() {
 		func() {
 			textView.Clear()
 			textArea.SetText("", false)
+
+			mod.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
+				ChannelId: "NONE",
+			})
+
 			if mod.appContext.ChatSession != nil {
 				mod.appContext.ChatSession.CancelFunc()
 				mod.appContext.ChatSession = nil
