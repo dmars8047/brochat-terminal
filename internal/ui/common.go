@@ -67,7 +67,7 @@ func AlertFatal(app *tview.Application, pages *tview.Pages, id string, message s
 	)
 }
 
-func alertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
+func AlertErrors(pages *tview.Pages, id, errMessage string, messages []string) {
 	added := false
 
 	for _, message := range messages {

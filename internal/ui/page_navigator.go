@@ -14,6 +14,9 @@ const (
 	HOME_FRIENDS_FINDER_PAGE   Page = "home:findafriend"
 	HOME_PENDING_REQUESTS_PAGE Page = "home:pendingrequests"
 	HOME_CHAT_PAGE             Page = "home:chat"
+	HOME_ROOM_LIST_PAGE        Page = "home:roomlist"
+	HOME_ROOM_FINDER_PAGE      Page = "home:roomfinder"
+	HOME_ROOM_EDITOR_PAGE      Page = "home:roomeditor"
 )
 
 type PageNavigator struct {

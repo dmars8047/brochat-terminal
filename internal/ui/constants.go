@@ -13,11 +13,11 @@ const (
 )
 
 var (
-	DangerBackgroundColor  = tcell.NewHexColor(DangerBackgroundColorCode)
-	BroChatYellowColor     = tcell.NewHexColor(BroChatYellowColorCode)
-	DefaultBackgroundColor = tcell.NewHexColor(DefaultBackgroundColorCode)
-	AccentBackgroundColor  = tcell.NewHexColor(AccentColorFourColorCode)
-	AccentColorTwoColor    = tcell.NewHexColor(AccentColorTwoColorCode)
-	ButtonStyle            = tcell.StyleDefault.Background(tcell.NewHexColor(AccentColorTwoColorCode)).Foreground(tcell.ColorWhite)
-	ActivatedButtonStyle   = tcell.StyleDefault.Background(tcell.NewHexColor(0xFFC300)).Foreground(tcell.ColorBlack)
+	DangerBackgroundColor    = tcell.NewHexColor(DangerBackgroundColorCode)
+	BROCHAT_YELLOW_COLOR     = tcell.NewHexColor(BroChatYellowColorCode)
+	DEFAULT_BACKGROUND_COLOR = tcell.NewHexColor(DefaultBackgroundColorCode)
+	ACCENT_BACKGROUND_COLOR  = tcell.NewHexColor(AccentColorFourColorCode)
+	ACCENT_COLOR_TWO_COLOR   = tcell.NewHexColor(AccentColorTwoColorCode)
+	DEFAULT_BUTTON_STYLE     = tcell.StyleDefault.Background(tcell.NewHexColor(AccentColorTwoColorCode)).Foreground(tcell.ColorWhite)
+	ACTIVATED_BUTTON_STYLE   = tcell.StyleDefault.Background(tcell.NewHexColor(0xFFC300)).Foreground(tcell.ColorBlack)
 )

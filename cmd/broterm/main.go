@@ -39,7 +39,7 @@ func main() {
 	app := tview.NewApplication()
 
 	pages := tview.NewPages()
-	pages.SetBackgroundColor(ui.DefaultBackgroundColor)
+	pages.SetBackgroundColor(ui.DEFAULT_BACKGROUND_COLOR)
 
 	pageNav := ui.NewNavigator(pages)
 

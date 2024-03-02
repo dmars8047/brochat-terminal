@@ -38,7 +38,7 @@ func (c *Client) Connect(userAuth state.UserAuth, ctx context.Context) error {
 	c.ChatMessageChannel = make(chan chat.ChatMessage, 1)
 
 	headers := http.Header{}
-	headers.Add("Authorization", "Bearer "+userAuth.AccessToken)
+	headers.Set("Authorization", "Bearer "+userAuth.AccessToken)
 
 	conn, _, err := c.dialer.Dial(c.url.String(), headers)
 

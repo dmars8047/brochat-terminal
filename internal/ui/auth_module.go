@@ -49,14 +49,14 @@ func (mod *AuthModule) SetupAuthPages() {
 
 func (mod *AuthModule) setupWelcomePage() {
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(4, 8, 8, 1, 1, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
 	logoBro.SetTextAlign(tview.AlignLeft).
-		SetBackgroundColor(DefaultBackgroundColor)
+		SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	logoBro.SetTextColor(tcell.ColorWhite)
 	logoBro.SetText(
 		`BBBBBBB\                      
@@ -70,8 +70,8 @@ BBBBBBB  |RR |      \OOOOOO  |
 
 	logoChat := tview.NewTextView()
 	logoChat.SetTextAlign(tview.AlignLeft)
-	logoChat.SetBackgroundColor(DefaultBackgroundColor)
-	logoChat.SetTextColor(BroChatYellowColor)
+	logoChat.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	logoChat.SetTextColor(BROCHAT_YELLOW_COLOR)
 	logoChat.SetText(
 		` CCCCCC\  HH\                  TT\
 CC  __CC\ HH |                 TT |
@@ -84,15 +84,15 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	loginButton := tview.NewButton("Login").SetSelectedFunc(func() {
 		mod.pageNav.NavigateTo(LOGIN_PAGE, nil)
-	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
+	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
 
 	registrationButton := tview.NewButton("Register").SetSelectedFunc(func() {
 		mod.pageNav.NavigateTo(REGISTER_PAGE, nil)
-	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
+	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
 
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
 		mod.app.Stop()
-	}).SetActivatedStyle(ActivatedButtonStyle).SetStyle(ButtonStyle)
+	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
 
 	buttonGrid := tview.NewGrid()
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -117,12 +117,12 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetBackgroundColor(DefaultBackgroundColor)
+	tvVersionNumber.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvVersionNumber.SetText("Version - v0.0.12")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
@@ -143,17 +143,17 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 func (mod *AuthModule) setupLoginPage() {
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
 	loginForm := tview.NewForm()
-	loginForm.SetBackgroundColor(AccentBackgroundColor)
-	loginForm.SetFieldBackgroundColor(AccentColorTwoColor)
-	loginForm.SetLabelColor(BroChatYellowColor)
+	loginForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
+	loginForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
+	loginForm.SetLabelColor(BROCHAT_YELLOW_COLOR)
 	loginForm.SetBorder(true).SetTitle(" BroChat - Login ").SetTitleAlign(tview.AlignCenter)
-	loginForm.SetButtonStyle(ButtonStyle)
-	loginForm.SetButtonActivatedStyle(ActivatedButtonStyle)
+	loginForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
+	loginForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
 	loginForm.AddInputField("Email", "", 0, nil, nil)
 	loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
@@ -163,7 +163,7 @@ func (mod *AuthModule) setupLoginPage() {
 		formValidationErrors := make([]string, 0)
 
 		if !ok {
-			panic("email input form clear failure")
+			panic("email input form access failure")
 		}
 
 		email := emailInput.GetText()
@@ -181,7 +181,7 @@ func (mod *AuthModule) setupLoginPage() {
 		passwordInput, ok := loginForm.GetFormItemByLabel("Password").(*tview.InputField)
 
 		if !ok {
-			panic("password input form clear failure")
+			panic("password input form access failure")
 		}
 
 		password := passwordInput.GetText()
@@ -196,7 +196,7 @@ func (mod *AuthModule) setupLoginPage() {
 		}
 
 		if len(formValidationErrors) > 0 {
-			alertErrors(mod.pageNav.Pages, "auth:login:alert:err", "Login Failed - Form Validation Error", formValidationErrors)
+			AlertErrors(mod.pageNav.Pages, "auth:login:alert:err", "Login Failed - Form Validation Error", formValidationErrors)
 			return
 		}
 
@@ -216,7 +216,7 @@ func (mod *AuthModule) setupLoginPage() {
 				switch idamErr.Code {
 				case idam.RequestValidationFailure:
 					errMessage = "Login Failed - Request Validation Error"
-					alertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
+					AlertErrors(mod.pageNav.Pages, "auth:login:alert:err", errMessage, idamErr.Details)
 					return
 				case idam.UserNotFound:
 					errMessage = "Login Failed - User Not Found"
@@ -291,7 +291,7 @@ func (mod *AuthModule) setupLoginPage() {
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetText("(CTRL + F) Forgot Password?")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
@@ -336,17 +336,17 @@ const (
 
 func (mod *AuthModule) setupForgotPasswordPage() {
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
 	forgotPWForm := tview.NewForm()
-	forgotPWForm.SetBackgroundColor(AccentBackgroundColor)
-	forgotPWForm.SetFieldBackgroundColor(AccentColorTwoColor)
-	forgotPWForm.SetLabelColor(BroChatYellowColor)
+	forgotPWForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
+	forgotPWForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
+	forgotPWForm.SetLabelColor(BROCHAT_YELLOW_COLOR)
 	forgotPWForm.SetBorder(true).SetTitle(FORGOT_PW_TITLE).SetTitleAlign(tview.AlignCenter)
-	forgotPWForm.SetButtonStyle(ButtonStyle)
-	forgotPWForm.SetButtonActivatedStyle(ActivatedButtonStyle)
+	forgotPWForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
+	forgotPWForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
 	forgotPWForm.AddInputField("Email", "", 0, nil, nil)
 
 	forgotPWForm.AddButton("Submit", func() {
@@ -365,7 +365,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 		)
 
 		if !valResult.Valid {
-			alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, "Form Validation Error", valResult.Messages)
+			AlertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, "Form Validation Error", valResult.Messages)
 			return
 		}
 
@@ -384,7 +384,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 				switch idamErr.Code {
 				case idam.RequestValidationFailure:
 					errMessage = "Request Validation Error"
-					alertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage, idamErr.Details)
+					AlertErrors(mod.pageNav.Pages, FORGOT_PW_MODAL_ERR, errMessage, idamErr.Details)
 					return
 				case idam.UserNotFound:
 					errMessage = "User Not Found"
@@ -408,7 +408,7 @@ func (mod *AuthModule) setupForgotPasswordPage() {
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetText("Enter your email to recieve a password reset link.")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
@@ -438,17 +438,17 @@ const (
 
 func (mod *AuthModule) setupRegistrationPage() {
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(4, 0, 6)
 	grid.SetColumns(0, 70, 0)
 
 	registrationForm := tview.NewForm()
 	registrationForm.SetBorder(true).SetTitle(" BroChat - Register ").SetTitleAlign(tview.AlignCenter)
-	registrationForm.SetBackgroundColor(AccentBackgroundColor)
-	registrationForm.SetFieldBackgroundColor(AccentColorTwoColor)
-	registrationForm.SetButtonStyle(ButtonStyle)
-	registrationForm.SetButtonActivatedStyle(ActivatedButtonStyle)
+	registrationForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
+	registrationForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
+	registrationForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
+	registrationForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
 
 	registrationForm.
 		AddInputField("Email", "", 0, nil, nil).
@@ -535,7 +535,7 @@ func (mod *AuthModule) setupRegistrationPage() {
 			}
 
 			if len(formValidationErrors) > 0 {
-				alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, "Login Failed - Form Validation Error", formValidationErrors)
+				AlertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, "Login Failed - Form Validation Error", formValidationErrors)
 				return
 			}
 
@@ -556,7 +556,7 @@ func (mod *AuthModule) setupRegistrationPage() {
 					switch idamErr.Code {
 					case idam.RequestValidationFailure:
 						errMessage = "Registration Failed - Request Validation Error"
-						alertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage, idamErr.Details)
+						AlertErrors(mod.pageNav.Pages, REGISTRATION_MODAL_ERR, errMessage, idamErr.Details)
 						return
 					case idam.InvalidCredentials:
 						errMessage = "Registration Failed - Invalid Credentials"

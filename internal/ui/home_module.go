@@ -8,6 +8,7 @@ import (
 	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idamlib/idam"
+	"github.com/dmars8047/strval"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -43,18 +44,21 @@ func (mod *HomeModule) SetupHomePages() {
 	mod.setupFindAFriendPage()
 	mod.setupAcceptPendingRequestPage()
 	mod.setupChatPage()
+	mod.setupRoomListPage()
+	mod.setupRoomFinderPage()
+	mod.setupRoomEditorPage()
 }
 
 func (mod *HomeModule) setupMenuPage() {
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(4, 8, 8, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
 	logoBro.SetTextAlign(tview.AlignLeft).
-		SetBackgroundColor(DefaultBackgroundColor)
+		SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	logoBro.SetTextColor(tcell.ColorWhite)
 	logoBro.SetText(
 		`BBBBBBB\                      
@@ -68,8 +72,8 @@ BBBBBBB  |RR |      \OOOOOO  |
 
 	logoChat := tview.NewTextView()
 	logoChat.SetTextAlign(tview.AlignLeft)
-	logoChat.SetBackgroundColor(DefaultBackgroundColor)
-	logoChat.SetTextColor(BroChatYellowColor)
+	logoChat.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	logoChat.SetTextColor(BROCHAT_YELLOW_COLOR)
 	logoChat.SetText(
 		` CCCCCC\  HH\                  TT\
 CC  __CC\ HH |                 TT |
@@ -81,32 +85,32 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
  \______/ \__|  \__| \_______|  \____/`)
 
 	brosButton := tview.NewButton("Bros").
-		SetActivatedStyle(ActivatedButtonStyle).
-		SetStyle(ButtonStyle)
+		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
+		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	brosButton.SetSelectedFunc(func() {
 		mod.pageNav.NavigateTo(HOME_FRIENDS_LIST_PAGE, nil)
 	})
 
 	chatButton := tview.NewButton("Chat").
-		SetActivatedStyle(ActivatedButtonStyle).
-		SetStyle(ButtonStyle)
+		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
+		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	chatButton.SetSelectedFunc(func() {
 		Alert(mod.pageNav.Pages, "home:menu:alert:info", "Chat Servers Not Implemented Yet")
 	})
 
 	settingsButton := tview.NewButton("Settings").
-		SetActivatedStyle(ActivatedButtonStyle).
-		SetStyle(ButtonStyle)
+		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
+		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	settingsButton.SetSelectedFunc(func() {
 		Alert(mod.pageNav.Pages, "home:menu:alert:info", "Settings Not Implemented Yet")
 	})
 
 	logoutButton := tview.NewButton("Logout").
-		SetActivatedStyle(ActivatedButtonStyle).
-		SetStyle(ButtonStyle)
+		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
+		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	logoutButton.SetSelectedFunc(func() {
 		err := mod.userAuthClient.Logout(mod.appContext.UserSession.Auth.AccessToken)
@@ -125,7 +129,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	buttonGrid := tview.NewGrid()
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.ColorWhite)
 
 	logoutButton.SetFocusFunc(func() {
@@ -137,7 +141,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	chatButton.SetFocusFunc(func() {
-		tvInstructions.SetText("Chat in a server or find one to join.")
+		tvInstructions.SetText("Chat in a room or find one to join.")
 	})
 
 	brosButton.SetFocusFunc(func() {
@@ -201,7 +205,7 @@ const (
 
 func (mod *HomeModule) setupFriendListPage() {
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(DefaultBackgroundColor)
+	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Friends List")
 
@@ -209,7 +213,7 @@ func (mod *HomeModule) setupFriendListPage() {
 
 	table := tview.NewTable().
 		SetBorders(true)
-	table.SetBackgroundColor(DefaultBackgroundColor)
+	table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	table.SetFixed(1, 1)
 	table.SetSelectable(true, false)
 
@@ -247,12 +251,12 @@ func (mod *HomeModule) setupFriendListPage() {
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(f) Find a new Bro - (p) View Pending - (esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -339,7 +343,7 @@ const (
 
 func (mod *HomeModule) setupFindAFriendPage() {
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(DefaultBackgroundColor)
+	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Find Friends")
 
@@ -347,7 +351,7 @@ func (mod *HomeModule) setupFindAFriendPage() {
 
 	table := tview.NewTable().
 		SetBorders(true)
-	table.SetBackgroundColor(DefaultBackgroundColor)
+	table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	table.SetFixed(1, 1)
 	table.SetSelectable(true, false)
 
@@ -408,12 +412,12 @@ func (mod *HomeModule) setupFindAFriendPage() {
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -465,13 +469,13 @@ func (mod *HomeModule) setupFindAFriendPage() {
 
 func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(DefaultBackgroundColor)
+	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Pending Friend Requests")
 
 	table := tview.NewTable().
 		SetBorders(true)
-	table.SetBackgroundColor(DefaultBackgroundColor)
+	table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	table.SetFixed(1, 1)
 	table.SetSelectable(true, false)
 
@@ -529,12 +533,12 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DefaultBackgroundColor)
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -586,19 +590,19 @@ func (mod *HomeModule) setupChatPage() {
 		SetDynamicColors(true)
 	textView.SetBorder(true)
 	textView.SetScrollable(true)
-	textView.SetBackgroundColor(DefaultBackgroundColor)
+	textView.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	textView.SetChangedFunc(func() {
 		mod.app.Draw()
 	})
 
 	textArea := tview.NewTextArea()
-	textArea.SetTextStyle(tcell.StyleDefault.Background(DefaultBackgroundColor))
+	textArea.SetTextStyle(tcell.StyleDefault.Background(DEFAULT_BACKGROUND_COLOR))
 	textArea.SetBorder(true)
-	textArea.SetBackgroundColor(DefaultBackgroundColor)
+	textArea.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DefaultBackgroundColor)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.ColorWhite)
 
 	tvInstructions.SetText("(enter) Send - (esc) Back")
@@ -760,4 +764,334 @@ func (mod *HomeModule) setupChatPage() {
 				mod.appContext.ChatSession = nil
 			}
 		})
+}
+
+const (
+	ROOM_LIST_PAGE_ALERT_INFO = "home:roomlist:alert:info"
+	ROOM_LIST_PAGE_ALERT_ERR  = "home:roomlist:alert:err"
+)
+
+// Sets up the room list page.
+func (mod *HomeModule) setupRoomListPage() {
+	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvHeader.SetText("Room List")
+
+	userRooms := make(map[int]chat.Room, 0)
+
+	table := tview.NewTable().
+		SetBorders(true)
+	table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	table.SetFixed(1, 1)
+	table.SetSelectable(true, false)
+
+	table.SetSelectedFunc(func(row int, _ int) {
+		room, ok := userRooms[row]
+
+		if !ok {
+			return
+		}
+
+		mod.pageNav.NavigateTo(HOME_CHAT_PAGE, ChatParams{
+			channel_id: room.ChannelId,
+		})
+	})
+
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'f':
+				mod.pageNav.NavigateTo(HOME_ROOM_FINDER_PAGE, nil)
+				userRooms = make(map[int]chat.Room, 0)
+				table.Clear()
+			}
+		} else if event.Key() == tcell.KeyEscape {
+			mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			userRooms = make(map[int]chat.Room, 0)
+			table.Clear()
+		}
+
+		return event
+	})
+
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvInstructions.SetText("(f) Find a Room - (esc) Quit")
+
+	grid := tview.NewGrid()
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+
+	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
+	grid.SetColumns(0, 76, 0)
+
+	grid.AddItem(tvHeader, 1, 1, 1, 1, 0, 0, false)
+	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
+
+	mod.pageNav.Register(HOME_ROOM_LIST_PAGE, grid, true, false,
+		func(param interface{}) {
+			table.SetCell(0, 0, tview.NewTableCell("Name").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetExpansion(1).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+			table.SetCell(0, 1, tview.NewTableCell("Owner").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+			for i, rel := range mod.appContext.BrochatUser.Rooms {
+				row := i + 1
+
+				table.SetCell(row, 0, tview.NewTableCell(rel.Name).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+				table.SetCell(row, 1, tview.NewTableCell(rel.Owner.Username).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+
+				userRooms[row] = rel
+			}
+		},
+		func() {
+			userRooms = make(map[int]chat.Room, 0)
+			table.Clear()
+		})
+}
+
+const (
+	ROOM_FINDER_PAGE_ALERT_INFO = "home:roomfinder:alert:info"
+	ROOM_FINDER_PAGE_ALERT_ERR  = "home:roomfinder:alert:err"
+	ROOM_FINDER_PAGE_CONFIRM    = "home:roomfinder:confirm"
+)
+
+// Sets up the Find A Room (public) page.
+func (mod *HomeModule) setupRoomFinderPage() {
+	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvHeader.SetText("Find Rooms")
+
+	publicRooms := make(map[int]chat.Room, 0)
+
+	table := tview.NewTable().
+		SetBorders(true)
+	table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	table.SetFixed(1, 1)
+	table.SetSelectable(true, false)
+
+	table.SetSelectedFunc(func(row int, _ int) {
+		room, ok := publicRooms[row]
+
+		if !ok {
+			return
+		}
+
+		Confirm(mod.pageNav.Pages, ROOM_FINDER_PAGE_CONFIRM, fmt.Sprintf("Join %s?", room.Name), func() {
+			joinRoomErr := mod.brochatClient.JoinRoom(&chat.AuthInfo{
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			}, room.Id)
+
+			if joinRoomErr != nil {
+				Alert(mod.pageNav.Pages, ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while joining room: %s", joinRoomErr.Error()))
+				return
+			}
+
+			Alert(mod.pageNav.Pages, ROOM_FINDER_PAGE_ALERT_INFO, fmt.Sprintf("You have successfuly joined the room '%s'.", room.Name))
+		})
+	})
+
+	table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'j':
+				mod.pageNav.NavigateTo(HOME_FRIENDS_FINDER_PAGE, nil)
+				publicRooms = make(map[int]chat.Room, 0)
+				table.Clear()
+			}
+		} else if event.Key() == tcell.KeyEscape {
+			mod.pageNav.NavigateTo(HOME_MENU_PAGE, nil)
+			publicRooms = make(map[int]chat.Room, 0)
+			table.Clear()
+		}
+
+		return event
+	})
+
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+	tvInstructions.SetText("(j) Join Room (esc) Quit")
+
+	grid := tview.NewGrid()
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+
+	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
+	grid.SetColumns(0, 76, 0)
+
+	grid.AddItem(tvHeader, 1, 1, 1, 1, 0, 0, false)
+	grid.AddItem(table, 3, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
+
+	mod.pageNav.Register(HOME_ROOM_FINDER_PAGE, grid, true, false,
+		func(param interface{}) {
+			table.SetCell(0, 0, tview.NewTableCell("Name").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetExpansion(1).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+			table.SetCell(0, 1, tview.NewTableCell("Owner").
+				SetTextColor(tcell.ColorWhite).
+				SetAlign(tview.AlignCenter).
+				SetSelectable(false).
+				SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
+
+			rooms, err := mod.brochatClient.GetRooms(&chat.AuthInfo{
+				AccessToken: mod.appContext.UserSession.Auth.AccessToken,
+				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+			})
+
+			if err != nil {
+				Alert(mod.pageNav.Pages, ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while retrieving public rooms: %s", err.Error()))
+				return
+			}
+
+			for i, rel := range rooms {
+				row := i + 1
+
+				table.SetCell(row, 0, tview.NewTableCell(rel.Name).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+				table.SetCell(row, 1, tview.NewTableCell(rel.Owner.Username).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+
+				publicRooms[row] = rel
+			}
+		},
+		func() {
+			publicRooms = make(map[int]chat.Room, 0)
+			table.Clear()
+		})
+}
+
+const (
+	ROOM_EDITOR_PAGE_ALERT_INFO = "home:roomeditor:alert:info"
+	ROOM_EDITOR_PAGE_ALERT_ERR  = "home:roomeditor:alert:err"
+	ROOM_EDITOR_PAGE_CONFIRM    = "home:roomeditor:confirm"
+)
+
+func (mod *HomeModule) setupRoomEditorPage() {
+	grid := tview.NewGrid()
+	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetRows(4, 0, 1, 3, 4)
+	grid.SetColumns(0, 70, 0)
+
+	form := tview.NewForm()
+	form.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
+	form.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
+	form.SetLabelColor(BROCHAT_YELLOW_COLOR)
+	form.SetBorder(true)
+	form.SetTitle(" BroChat - Room Creation Editor ")
+	form.SetTitleAlign(tview.AlignCenter)
+	form.SetButtonStyle(DEFAULT_BUTTON_STYLE)
+	form.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
+
+	//Add forms
+	form.AddInputField("Room Name", "", 0, nil, nil)
+	form.AddDropDown("Membership Model", []string{string(chat.PUBLIC_MEMBERSHIP_MODEL), string(chat.FRIENDS_MEMBERSHIP_MODEL)}, -1, nil)
+
+	form.AddButton("Submit", func() {
+		nameInput, ok := form.GetFormItemByLabel("Room Name").(*tview.InputField)
+
+		if !ok {
+			panic("room name input form access failure")
+		}
+
+		name := nameInput.GetText()
+
+		valResult := strval.ValidateStringWithName(name, "Room Name",
+			strval.MustNotBeEmpty(),
+			strval.MustBeAlphaNumeric(),
+			strval.MustHaveMinLengthOf(3),
+			strval.MustHaveMaxLengthOf(32))
+
+		if !valResult.Valid {
+			AlertErrors(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, "Room Creation Failed - Form Validation Error", valResult.Messages)
+			return
+		}
+
+		membershipModelDropdown, ok := form.GetFormItemByLabel("Membership Model").(*tview.DropDown)
+
+		if !ok {
+			panic("membership model dropdown form access failure")
+		}
+
+		optIndex := membershipModelDropdown.GetOptionCount()
+
+		if optIndex < 0 {
+			Alert(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, "Room Creation Failed - Membership Model Selection Invalid")
+			return
+		}
+
+		request := &chat.CreateRoomRequest{
+			Name: name,
+		}
+
+		switch optIndex {
+		case 0:
+			request.MembershipModel = string(chat.PUBLIC_MEMBERSHIP_MODEL)
+		case 1:
+			request.MembershipModel = string(chat.FRIENDS_MEMBERSHIP_MODEL)
+		default:
+			panic("illegal membership model values selected from dropdown")
+		}
+
+		room, err := mod.brochatClient.CreateRoom(&chat.AuthInfo{
+			AccessToken: mod.appContext.UserSession.Auth.AccessToken,
+			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
+		}, request)
+
+		if err != nil {
+			Alert(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", err.Error()))
+		}
+
+		mod.appContext.BrochatUser.Rooms = append(mod.appContext.BrochatUser.Rooms, *room)
+
+		AlertWithDoneFunc(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_INFO, "Room creation successful!", func(buttonIndex int, buttonLabel string) {
+			mod.pageNav.NavigateTo(HOME_ROOM_LIST_PAGE, nil)
+		})
+	})
+
+	form.AddButton("Back", func() {
+		mod.pageNav.NavigateTo(HOME_ROOM_LIST_PAGE, nil)
+	})
+
+	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
+	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetText("Enter a name and membership model for your new room.")
+	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
+
+	grid.AddItem(form, 1, 1, 1, 1, 0, 0, true)
+	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
+
+	mod.pageNav.Register(HOME_ROOM_EDITOR_PAGE, grid, true, false, func(param interface{}) {
+		form.SetFocus(0)
+	}, func() {
+		roomNameInput, ok := form.GetFormItemByLabel("Room Name").(*tview.InputField)
+
+		if !ok {
+			panic("room name input form clear failure")
+		}
+
+		roomNameInput.SetText("")
+
+		membModelDropdown, ok := form.GetFormItemByLabel("Password").(*tview.DropDown)
+
+		if !ok {
+			panic("membership model dropdown form clear failure")
+		}
+
+		membModelDropdown.SetCurrentOption(-1)
+	})
 }
