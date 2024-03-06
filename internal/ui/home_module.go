@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
@@ -97,7 +98,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	chatButton.SetSelectedFunc(func() {
-		Alert(mod.pageNav.Pages, "home:menu:alert:info", "Chat Servers Not Implemented Yet")
+		mod.pageNav.NavigateTo(HOME_ROOM_LIST_PAGE, nil)
 	})
 
 	settingsButton := tview.NewButton("Settings").
@@ -583,6 +584,7 @@ func (mod *HomeModule) setupAcceptPendingRequestPage() {
 
 type ChatParams struct {
 	channel_id string
+	title      string
 }
 
 func (mod *HomeModule) setupChatPage() {
@@ -638,7 +640,11 @@ func (mod *HomeModule) setupChatPage() {
 				return
 			}
 
-			textView.SetTitle(fmt.Sprintf(" %s - %s ", channel.Users[0].Username, channel.Users[1].Username))
+			if channel.Type == chat.CHANNEL_TYPE_DIRECT_MESSAGE {
+				textView.SetTitle(fmt.Sprintf(" %s - %s ", channel.Users[0].Username, channel.Users[1].Username))
+			} else if chatParams.title != "" {
+				textView.SetTitle(fmt.Sprintf(" %s ", chatParams.title))
+			}
 
 			// Get the channel messages
 			messages, err := mod.brochatClient.GetChannelMessages(&chat.AuthInfo{
@@ -795,6 +801,7 @@ func (mod *HomeModule) setupRoomListPage() {
 
 		mod.pageNav.NavigateTo(HOME_CHAT_PAGE, ChatParams{
 			channel_id: room.ChannelId,
+			title:      room.Name,
 		})
 	})
 
@@ -803,6 +810,10 @@ func (mod *HomeModule) setupRoomListPage() {
 			switch event.Rune() {
 			case 'f':
 				mod.pageNav.NavigateTo(HOME_ROOM_FINDER_PAGE, nil)
+				userRooms = make(map[int]chat.Room, 0)
+				table.Clear()
+			case 'n':
+				mod.pageNav.NavigateTo(HOME_ROOM_EDITOR_PAGE, nil)
 				userRooms = make(map[int]chat.Room, 0)
 				table.Clear()
 			}
@@ -818,7 +829,7 @@ func (mod *HomeModule) setupRoomListPage() {
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
-	tvInstructions.SetText("(f) Find a Room - (esc) Quit")
+	tvInstructions.SetText("(n) Create a Room - (f) Find a Room - (esc) Quit")
 
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
@@ -1012,9 +1023,9 @@ func (mod *HomeModule) setupRoomEditorPage() {
 
 		valResult := strval.ValidateStringWithName(name, "Room Name",
 			strval.MustNotBeEmpty(),
-			strval.MustBeAlphaNumeric(),
 			strval.MustHaveMinLengthOf(3),
-			strval.MustHaveMaxLengthOf(32))
+			strval.MustHaveMaxLengthOf(32),
+		)
 
 		if !valResult.Valid {
 			AlertErrors(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, "Room Creation Failed - Form Validation Error", valResult.Messages)
@@ -1027,33 +1038,27 @@ func (mod *HomeModule) setupRoomEditorPage() {
 			panic("membership model dropdown form access failure")
 		}
 
-		optIndex := membershipModelDropdown.GetOptionCount()
+		optIndex, optstr := membershipModelDropdown.GetCurrentOption()
 
-		if optIndex < 0 {
+		if optIndex < 0 || optstr == "" {
 			Alert(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, "Room Creation Failed - Membership Model Selection Invalid")
+			log.Print(optstr)
 			return
 		}
 
 		request := &chat.CreateRoomRequest{
-			Name: name,
+			Name:            name,
+			MembershipModel: optstr,
 		}
 
-		switch optIndex {
-		case 0:
-			request.MembershipModel = string(chat.PUBLIC_MEMBERSHIP_MODEL)
-		case 1:
-			request.MembershipModel = string(chat.FRIENDS_MEMBERSHIP_MODEL)
-		default:
-			panic("illegal membership model values selected from dropdown")
-		}
-
-		room, err := mod.brochatClient.CreateRoom(&chat.AuthInfo{
+		room, createRoomErr := mod.brochatClient.CreateRoom(&chat.AuthInfo{
 			AccessToken: mod.appContext.UserSession.Auth.AccessToken,
 			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
 		}, request)
 
-		if err != nil {
-			Alert(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", err.Error()))
+		if createRoomErr != nil {
+			Alert(mod.pageNav.Pages, ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", createRoomErr.Error()))
+			return
 		}
 
 		mod.appContext.BrochatUser.Rooms = append(mod.appContext.BrochatUser.Rooms, *room)
@@ -1086,7 +1091,7 @@ func (mod *HomeModule) setupRoomEditorPage() {
 
 		roomNameInput.SetText("")
 
-		membModelDropdown, ok := form.GetFormItemByLabel("Password").(*tview.DropDown)
+		membModelDropdown, ok := form.GetFormItemByLabel("Membership Model").(*tview.DropDown)
 
 		if !ok {
 			panic("membership model dropdown form clear failure")
