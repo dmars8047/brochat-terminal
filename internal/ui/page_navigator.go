@@ -1,45 +1,43 @@
 package ui
 
-import "github.com/rivo/tview"
+import (
+	"fmt"
+	"strings"
 
-type Page string
-
-const (
-	WELCOME_PAGE               Page = "auth:welcome"
-	LOGIN_PAGE                 Page = "auth:login"
-	REGISTER_PAGE              Page = "auth:register"
-	FORGOT_PW_PAGE             Page = "auth:forgotpw"
-	HOME_MENU_PAGE             Page = "home:menu"
-	HOME_FRIENDS_LIST_PAGE     Page = "home:friendslist"
-	HOME_FRIENDS_FINDER_PAGE   Page = "home:findafriend"
-	HOME_PENDING_REQUESTS_PAGE Page = "home:pendingrequests"
-	HOME_CHAT_PAGE             Page = "home:chat"
-	HOME_ROOM_LIST_PAGE        Page = "home:roomlist"
-	HOME_ROOM_FINDER_PAGE      Page = "home:roomfinder"
-	HOME_ROOM_EDITOR_PAGE      Page = "home:roomeditor"
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 )
 
+type PageSlug string
+
+// PageNavigator is a page navigator
 type PageNavigator struct {
-	current    Page
+	current    PageSlug
 	Pages      *tview.Pages
-	openFuncs  map[Page]func(interface{})
-	closeFuncs map[Page]func()
+	openFuncs  map[PageSlug]func(interface{})
+	closeFuncs map[PageSlug]func()
 }
 
-func NewNavigator(pages *tview.Pages) *PageNavigator {
+// NewNavigator creates a new page navigator
+func NewNavigator() *PageNavigator {
+	pages := tview.NewPages()
+	pages.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+
 	return &PageNavigator{
 		current:    WELCOME_PAGE,
 		Pages:      pages,
-		openFuncs:  make(map[Page]func(interface{})),
-		closeFuncs: make(map[Page]func()),
+		openFuncs:  make(map[PageSlug]func(interface{})),
+		closeFuncs: make(map[PageSlug]func()),
 	}
 }
 
-func (nav *PageNavigator) Register(page Page,
+// Register registers a page with the page navigator
+func (nav *PageNavigator) Register(page PageSlug,
 	primitive tview.Primitive,
 	resize, visible bool,
 	openFunc func(interface{}),
 	closeFunc func()) {
+
 	nav.Pages.AddPage(string(page), primitive, resize, visible)
 
 	if openFunc != nil {
@@ -51,7 +49,8 @@ func (nav *PageNavigator) Register(page Page,
 	}
 }
 
-func (nav *PageNavigator) NavigateTo(pageName Page, param interface{}) {
+// NavigateTo navigates to a page
+func (nav *PageNavigator) NavigateTo(pageName PageSlug, param interface{}) {
 	close, ok := nav.closeFuncs[nav.current]
 
 	if ok {
@@ -67,4 +66,85 @@ func (nav *PageNavigator) NavigateTo(pageName Page, param interface{}) {
 	}
 
 	nav.Pages.SwitchToPage(string(pageName))
+}
+
+// Confirm creates a confirmation modal
+func (nav *PageNavigator) Confirm(id string, massage string, yesFunc func()) *tview.Pages {
+	return nav.Pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(massage).
+			AddButtons([]string{"Yes", "No"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				if buttonLabel == "Yes" {
+					yesFunc()
+				}
+				nav.Pages.HidePage(id).RemovePage(id)
+			}),
+		false,
+		true,
+	)
+}
+
+// Alert creates an alert modal
+func (nav *PageNavigator) Alert(id string, message string) *tview.Pages {
+	return nav.Pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(message).
+			AddButtons([]string{"Close"}).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				nav.Pages.HidePage(id).RemovePage(id)
+			}),
+		false,
+		true,
+	)
+}
+
+// AlertWithDoneFunc creates an alert modal with a done function
+func (nav *PageNavigator) AlertWithDoneFunc(id string, message string, doneFunc func(buttonIndex int, buttonLabel string)) *tview.Pages {
+	return nav.Pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText(message).
+			AddButtons([]string{"Close"}).
+			SetDoneFunc(doneFunc),
+		false,
+		true,
+	)
+}
+
+// AlertFatal creates a fatal alert modal
+func (nav *PageNavigator) AlertFatal(app *tview.Application, id string, message string) *tview.Pages {
+	return nav.Pages.AddPage(
+		id,
+		tview.NewModal().
+			SetText("Fatal Error: "+message).
+			AddButtons([]string{"Exit"}).
+			SetBackgroundColor(DangerBackgroundColor).
+			SetTextColor(tcell.ColorWhite).
+			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+				app.Stop()
+			}),
+		false,
+		true,
+	)
+}
+
+// AlertErrors creates an alert modal with a list of errors
+func (nav *PageNavigator) AlertErrors(id, errMessage string, messages []string) {
+	added := false
+
+	for _, message := range messages {
+		if len(message) > 2 {
+			if !added {
+				errMessage += "\n"
+				added = true
+			}
+			val := strings.ToUpper(string(message[0])) + message[1:]
+			errMessage += fmt.Sprintf("\n- %s", val)
+		}
+	}
+
+	nav.Alert(id, errMessage)
 }

@@ -20,7 +20,7 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 
-	// Setup idam user auth client
+	// Setup dependencies
 	userAuthClient := idam.NewUserAuthClient(httpClient, "http://localhost:8083")
 
 	brochatClient := chat.NewBroChatClient(httpClient, "http://localhost:8083")
@@ -29,28 +29,70 @@ func main() {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
+	feedClient := feed.NewFeedClient(dialer, "localhost:8083")
+
+	// Setup the application context
 	context, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	appContext := state.NewApplicationContext(context)
 
-	feedClient := feed.NewFeedClient(dialer, "localhost:8083")
-
+	// Configure the application
 	app := tview.NewApplication()
 
-	pages := tview.NewPages()
-	pages.SetBackgroundColor(ui.DEFAULT_BACKGROUND_COLOR)
+	// Setup the page navigator
+	nav := ui.NewNavigator()
 
-	pageNav := ui.NewNavigator(pages)
+	// Setup the welcome page
+	welcomePage := ui.NewWelcomePage()
+	welcomePage.Setup(app, appContext, nav)
 
-	homeModule := ui.NewHomeModule(userAuthClient, app, pageNav, brochatClient, appContext, feedClient)
-	homeModule.SetupHomePages()
+	// Setup the registration page
+	registrationPage := ui.NewRegistrationPage(userAuthClient)
+	registrationPage.Setup(app, appContext, nav)
 
-	authModule := ui.NewAuthModule(userAuthClient, brochatClient, appContext, pageNav, app, feedClient)
-	authModule.SetupAuthPages()
+	// Setup the login page
+	loginPage := ui.NewLoginPage(userAuthClient, brochatClient, feedClient)
+	loginPage.Setup(app, appContext, nav)
+
+	// Setup the forgot password page
+	forgotPasswordPage := ui.NewForgotPasswordPage(userAuthClient)
+	forgotPasswordPage.Setup(app, appContext, nav)
+
+	// Setup the chat page
+	chatPage := ui.NewChatPage(brochatClient, feedClient)
+	chatPage.Setup(app, appContext, nav)
+
+	// Setup the home page
+	homePage := ui.NewHomePage(userAuthClient)
+	homePage.Setup(app, appContext, nav)
+
+	// Setup the friends list page
+	friendsListPage := ui.NewFriendsListPage(brochatClient)
+	friendsListPage.Setup(app, appContext, nav)
+
+	// Setup the find a friend page
+	findAFriendPage := ui.NewFindAFriendPage(brochatClient)
+	findAFriendPage.Setup(app, appContext, nav)
+
+	// Setup the accept friend request page
+	acceptFriendRequestPage := ui.NewAcceptFriendRequestPage(brochatClient)
+	acceptFriendRequestPage.Setup(app, appContext, nav)
+
+	// Setup the room list page
+	roomListPage := ui.NewRoomListPage(brochatClient)
+	roomListPage.Setup(app, appContext, nav)
+
+	// Setup the room editor page
+	roomEditorPage := ui.NewRoomEditorPage(brochatClient)
+	roomEditorPage.Setup(app, appContext, nav)
+
+	// Setup the room finder page
+	roomFinderPage := ui.NewRoomFinderPage(brochatClient)
+	roomFinderPage.Setup(app, appContext, nav)
 
 	// Start the application.
-	err := app.SetRoot(pages, true).Run()
+	err := app.SetRoot(nav.Pages, true).Run()
 
 	if err != nil {
 		log.Fatalf("Fatal error: %v", err)
