@@ -7,14 +7,12 @@ import (
 	"github.com/dmars8047/brolib/chat"
 )
 
-type Property = string
-
 type ApplicationContext struct {
 	// The context for the application
 	Context     context.Context
-	UserSession *UserSession
 	BrochatUser *chat.User
-	ChatSession *ChatSession
+	chatSession *ChatSession
+	userSession *UserSession
 }
 
 func NewApplicationContext(context context.Context) *ApplicationContext {
@@ -23,16 +21,63 @@ func NewApplicationContext(context context.Context) *ApplicationContext {
 	}
 }
 
-type UserSession struct {
-	Auth       UserAuth
-	Info       UserInfo
-	Context    context.Context
-	CancelFunc context.CancelFunc
+func (appContext *ApplicationContext) GetUserAuth() UserAuth {
+	if appContext.userSession == nil {
+		return UserAuth{}
+	}
+
+	return appContext.userSession.Auth
 }
 
-type UserInfo struct {
-	Username string
-	Id       string
+// GetAuthInfo returns the auth info for the user session. This is used to authenticate calls made using the brochat client.
+func (appContext *ApplicationContext) GetAuthInfo() *chat.AuthInfo {
+	if appContext.userSession == nil {
+		return nil
+	}
+
+	return &chat.AuthInfo{
+		AccessToken: appContext.userSession.Auth.AccessToken,
+		TokenType:   "Bearer",
+	}
+}
+
+func (appContext *ApplicationContext) SetUserSession(auth UserAuth) {
+	context, cancel := context.WithCancel(appContext.Context)
+
+	appContext.userSession = &UserSession{
+		Auth:       auth,
+		context:    context,
+		cancelFunc: cancel,
+	}
+
+	go func(ctx *ApplicationContext) {
+		select {
+		case <-ctx.userSession.context.Done():
+			return
+		case <-time.After(time.Until(ctx.userSession.Auth.TokenExpiration)):
+			ctx.CancelUserSession()
+			return
+		}
+	}(appContext)
+}
+
+func (appContext *ApplicationContext) SetChatSession(channel *chat.Channel) {
+	context, cancel := context.WithCancel(appContext.Context)
+
+	appContext.chatSession = &ChatSession{
+		channel:    channel,
+		context:    context,
+		cancelFunc: cancel,
+	}
+}
+
+func (appContext *ApplicationContext) CancelUserSession() {
+	appContext.userSession.cancelFunc()
+}
+
+func (appContext *ApplicationContext) CancelChatSession() {
+	appContext.chatSession.cancelFunc()
+	appContext.chatSession = nil
 }
 
 type UserAuth struct {
@@ -40,18 +85,14 @@ type UserAuth struct {
 	TokenExpiration time.Time
 }
 
-type ChatSession struct {
-	Channel    *chat.Channel
-	Context    context.Context
-	CancelFunc context.CancelFunc
+type UserSession struct {
+	Auth       UserAuth
+	context    context.Context
+	cancelFunc context.CancelFunc
 }
 
-func NewChatSession(channel *chat.Channel, ctx context.Context) *ChatSession {
-	context, cancel := context.WithCancel(ctx)
-
-	return &ChatSession{
-		Channel:    channel,
-		Context:    context,
-		CancelFunc: cancel,
-	}
+type ChatSession struct {
+	channel    *chat.Channel
+	context    context.Context
+	cancelFunc context.CancelFunc
 }

@@ -120,10 +120,7 @@ func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *stat
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	usr, err := page.brochatClient.GetUser(&chat.AuthInfo{
-		AccessToken: appContext.UserSession.Auth.AccessToken,
-		TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-	}, appContext.UserSession.Info.Id)
+	usr, err := page.brochatClient.GetUser(appContext.GetAuthInfo(), appContext.BrochatUser.Id)
 
 	if err != nil {
 		nav.AlertFatal(app, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())

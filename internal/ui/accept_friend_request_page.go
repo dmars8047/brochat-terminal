@@ -47,10 +47,7 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 		}
 
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", selectedUser.Username), func() {
-			err := page.brochatClient.AcceptFriendRequest(&chat.AuthInfo{
-				AccessToken: appContext.UserSession.Auth.AccessToken,
-				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, &chat.AcceptFriendRequestRequest{
+			err := page.brochatClient.AcceptFriendRequest(appContext.GetAuthInfo(), &chat.AcceptFriendRequestRequest{
 				InitiatingUserId: selectedUser.UserId,
 			})
 

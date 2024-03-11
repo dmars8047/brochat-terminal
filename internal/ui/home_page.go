@@ -85,15 +85,14 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	logoutButton.SetSelectedFunc(func() {
-		err := page.userAuthClient.Logout(appContext.UserSession.Auth.AccessToken)
+		err := page.userAuthClient.Logout(appContext.GetAuthInfo().AccessToken)
 
 		if err != nil {
 			nav.AlertFatal(app, "home:menu:alert:err", err.Error())
 			return
 		}
 
-		appContext.UserSession.CancelFunc()
-		appContext.UserSession = nil
+		appContext.CancelUserSession()
 
 		nav.NavigateTo(WELCOME_PAGE, nil)
 	})
@@ -168,9 +167,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 func (page *HomePage) onPageLoad(appContext *state.ApplicationContext, nav *PageNavigator) {
 	// Make sure the session is still valid
-	if appContext.UserSession.Auth.TokenExpiration.Before(time.Now()) {
-		appContext.UserSession.CancelFunc()
-		appContext.UserSession = nil
+	if appContext.GetUserAuth().TokenExpiration.Before(time.Now()) {
+		appContext.CancelUserSession()
 		nav.NavigateTo(LOGIN_PAGE, nil)
 	}
 }

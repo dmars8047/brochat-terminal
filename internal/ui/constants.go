@@ -8,8 +8,6 @@ const (
 	AccentColorFourColorCode   = 0x444444
 	DefaultBackgroundColorCode = 0x111111
 	DangerBackgroundColorCode  = 0xFF0E0E
-
-	DEFAULT_AUTH_TOKEN_TYPE = "Bearer"
 )
 
 var (

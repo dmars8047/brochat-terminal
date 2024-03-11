@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
-	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
@@ -16,13 +15,13 @@ const CHAT_PAGE PageSlug = "chat"
 // ChatPage is the chat page
 type ChatPage struct {
 	brochatClient *chat.BroChatUserClient
-	feedClient    *feed.Client
+	feedClient    *state.FeedClient
 	textView      *tview.TextView
 	textArea      *tview.TextArea
 }
 
 // NewChatPage creates a new chat page
-func NewChatPage(brochatClient *chat.BroChatUserClient, feedClient *feed.Client) *ChatPage {
+func NewChatPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *ChatPage {
 	return &ChatPage{
 		brochatClient: brochatClient,
 		feedClient:    feedClient,
@@ -86,10 +85,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 	}
 
 	// Get the channel
-	channel, err := page.brochatClient.GetChannelManifest(&chat.AuthInfo{
-		AccessToken: appContext.UserSession.Auth.AccessToken,
-		TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-	}, chatParam.channel_id)
+	channel, err := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), chatParam.channel_id)
 
 	if err != nil {
 		nav.Alert("home:chat:alert:err", err.Error())
@@ -103,10 +99,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 	}
 
 	// Get the channel messages
-	messages, err := page.brochatClient.GetChannelMessages(&chat.AuthInfo{
-		AccessToken: appContext.UserSession.Auth.AccessToken,
-		TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-	}, chatParam.channel_id)
+	messages, err := page.brochatClient.GetChannelMessages(appContext.GetAuthInfo(), chatParam.channel_id)
 
 	if err != nil {
 		nav.AlertFatal(app, "home:chat:alert:err", err.Error())
@@ -125,7 +118,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 		color := CHAT_COLOR_TWO
 
-		if msg.SenderUserId == appContext.UserSession.Info.Id {
+		if msg.SenderUserId == appContext.BrochatUser.Id {
 			color = CHAT_COLOR_ONE
 		}
 
@@ -139,10 +132,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 		if senderUsername == "" {
 			// Make a request to get the channel manifest
 			// This is a fallback in case the user info is not in the channel manifest for some reason (maybe the just joined the channel)
-			newChannel, getChanErr := page.brochatClient.GetChannelManifest(&chat.AuthInfo{
-				AccessToken: appContext.UserSession.Auth.AccessToken,
-				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, chatParam.channel_id)
+			newChannel, getChanErr := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), chatParam.channel_id)
 
 			if getChanErr != nil {
 				nav.Alert("home:chat:alert:err", getChanErr.Error())
@@ -168,7 +158,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 	page.textView.ScrollToEnd()
 
 	// Set the chat context
-	appContext.ChatSession = state.NewChatSession(channel, appContext.Context)
+	appContext.SetChatSession(channel)
 
 	page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
 		ChannelId: channel.Id,
@@ -182,7 +172,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 				page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessage{
 					ChannelId:    channel.Id,
 					Content:      text,
-					SenderUserId: appContext.UserSession.Info.Id,
+					SenderUserId: appContext.BrochatUser.Id,
 				})
 
 				page.textArea.SetText("", false)
@@ -197,54 +187,46 @@ func (page *ChatPage) onPageLoad(param interface{},
 	})
 
 	// Start the chat message listener
-	go func(ch *chat.Channel, cs *state.ChatSession, a *tview.Application, tv *tview.TextView) {
-		for {
-			select {
-			case <-cs.Context.Done():
-				return
-			case msg := <-page.feedClient.ChatMessageChannel:
-				if msg.ChannelId == ch.Id {
-					a.QueueUpdateDraw(func() {
-						var senderUsername string
-						color := "#C061CB"
+	go func(ch *chat.Channel, a *tview.Application, tv *tview.TextView) {
+		for msg := range page.feedClient.ChatMessageChannel {
+			if msg.ChannelId == ch.Id {
+				a.QueueUpdateDraw(func() {
+					var senderUsername string
+					color := "#C061CB"
 
-						if msg.SenderUserId == appContext.UserSession.Info.Id {
-							color = "#33DA7A"
+					if msg.SenderUserId == appContext.BrochatUser.Id {
+						color = "#33DA7A"
+					}
+
+					for _, u := range ch.Users {
+						if u.Id == msg.SenderUserId {
+							senderUsername = u.Username
+							break
+						}
+					}
+
+					if senderUsername == "" {
+						// Make a request to get the channel manifest
+						// This is a fallback in case the user info is not in the channel manifest for some reason (maybe the just joined the channel)
+						newChannel, getChanErr := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), ch.Id)
+
+						if getChanErr != nil {
+							nav.Alert("home:chat:alert:err", getChanErr.Error())
+							return
 						}
 
-						for _, u := range ch.Users {
-							if u.Id == msg.SenderUserId {
-								senderUsername = u.Username
-								break
-							}
-						}
+						channel = newChannel
+					}
 
-						if senderUsername == "" {
-							// Make a request to get the channel manifest
-							// This is a fallback in case the user info is not in the channel manifest for some reason (maybe the just joined the channel)
-							newChannel, getChanErr := page.brochatClient.GetChannelManifest(&chat.AuthInfo{
-								AccessToken: appContext.UserSession.Auth.AccessToken,
-								TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-							}, ch.Id)
+					dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
 
-							if getChanErr != nil {
-								nav.Alert("home:chat:alert:err", getChanErr.Error())
-								return
-							}
-
-							channel = newChannel
-						}
-
-						dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
-
-						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
-						tv.Write([]byte(msgString + "\n"))
-						tv.ScrollToEnd()
-					})
-				}
+					msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+					tv.Write([]byte(msgString + "\n"))
+					tv.ScrollToEnd()
+				})
 			}
 		}
-	}(channel, appContext.ChatSession, app, page.textView)
+	}(channel, app, page.textView)
 }
 
 // onPageClose is called when the chat page is navigated away from
@@ -258,10 +240,7 @@ func (page *ChatPage) onPageClose(
 		ChannelId: "NONE",
 	})
 
-	if appContext.ChatSession != nil {
-		appContext.ChatSession.CancelFunc()
-		appContext.ChatSession = nil
-	}
+	appContext.CancelChatSession()
 }
 
 // ChatPageParameters is load time parameters for the chat page

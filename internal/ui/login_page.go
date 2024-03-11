@@ -1,11 +1,9 @@
 package ui
 
 import (
-	"context"
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
-	"github.com/dmars8047/broterm/internal/feed"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idamlib/idam"
 	"github.com/dmars8047/strval"
@@ -23,12 +21,12 @@ const (
 type LoginPage struct {
 	userAuthClient *idam.UserAuthClient
 	brochatClient  *chat.BroChatUserClient
-	feedClient     *feed.Client
+	feedClient     *state.FeedClient
 	loginForm      *tview.Form
 }
 
 // NewLoginPage creates a new instance of the login page
-func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroChatUserClient, feedClient *feed.Client) *LoginPage {
+func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *LoginPage {
 	return &LoginPage{
 		userAuthClient: userAuthClient,
 		brochatClient:  brochatClient,
@@ -139,30 +137,15 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 			return
 		}
 
-		sessionContext, sessionCancelFunc := context.WithCancel(appContext.Context)
-
-		session := &state.UserSession{
-			Auth: state.UserAuth{
-				AccessToken:     loginResponse.Token,
-				TokenExpiration: time.Now().Add(time.Duration(loginResponse.ExpiresIn * int64(time.Second))),
-			},
-			Info: state.UserInfo{
-				Id:       loginResponse.UserId,
-				Username: loginResponse.Username,
-			},
-			Context:    sessionContext,
-			CancelFunc: sessionCancelFunc,
-		}
-
-		appContext.UserSession = session
+		appContext.SetUserSession(state.UserAuth{
+			AccessToken:     loginResponse.Token,
+			TokenExpiration: time.Now().Add(time.Duration(loginResponse.ExpiresIn * int64(time.Second))),
+		})
 
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		brochatUser, err := page.brochatClient.GetUser(&chat.AuthInfo{
-			AccessToken: session.Auth.AccessToken,
-			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-		}, session.Info.Id)
+		brochatUser, err := page.brochatClient.GetUser(appContext.GetAuthInfo(), loginResponse.UserId)
 
 		if err != nil {
 			nav.Alert("auth:login:alert:err", err.Error())
@@ -171,23 +154,12 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 
 		appContext.BrochatUser = brochatUser
 
-		err = page.feedClient.Connect(session.Auth, session.Context)
+		err = page.feedClient.Connect(appContext)
 
 		if err != nil {
 			nav.Alert("auth:login:alert:err", err.Error())
 			return
 		}
-
-		go func(ctx *state.ApplicationContext, pageNav *PageNavigator) {
-			select {
-			case <-ctx.UserSession.Context.Done():
-				return
-			case <-time.After(time.Until(ctx.UserSession.Auth.TokenExpiration)):
-				ctx.UserSession.CancelFunc()
-				pageNav.NavigateTo(LOGIN_PAGE, nil)
-				return
-			}
-		}(appContext, nav)
 
 		nav.NavigateTo(HOME_PAGE, nil)
 	})

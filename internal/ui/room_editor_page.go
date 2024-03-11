@@ -2,7 +2,6 @@ package ui
 
 import (
 	"fmt"
-	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -83,7 +82,6 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 
 		if optIndex < 0 || optstr == "" {
 			nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, "Room Creation Failed - Membership Model Selection Invalid")
-			log.Print(optstr)
 			return
 		}
 
@@ -92,10 +90,7 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 			MembershipModel: optstr,
 		}
 
-		room, createRoomErr := page.brochatClient.CreateRoom(&chat.AuthInfo{
-			AccessToken: appContext.UserSession.Auth.AccessToken,
-			TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-		}, request)
+		room, createRoomErr := page.brochatClient.CreateRoom(appContext.GetAuthInfo(), request)
 
 		if createRoomErr != nil {
 			nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", createRoomErr.Error()))

@@ -53,10 +53,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 		}
 
 		nav.Confirm(ROOM_FINDER_PAGE_CONFIRM, fmt.Sprintf("Join %s?", room.Name), func() {
-			joinRoomErr := page.brochatClient.JoinRoom(&chat.AuthInfo{
-				AccessToken: appContext.UserSession.Auth.AccessToken,
-				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, room.Id)
+			joinRoomErr := page.brochatClient.JoinRoom(appContext.GetAuthInfo(), room.Id)
 
 			if joinRoomErr != nil {
 				nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while joining room: %s", joinRoomErr.Error()))
@@ -124,10 +121,7 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	rooms, err := page.brochatClient.GetRooms(&chat.AuthInfo{
-		AccessToken: appContext.UserSession.Auth.AccessToken,
-		TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-	})
+	rooms, err := page.brochatClient.GetRooms(appContext.GetAuthInfo())
 
 	if err != nil {
 		nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while retrieving public rooms: %s", err.Error()))

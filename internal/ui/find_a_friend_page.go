@@ -53,10 +53,7 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 		}
 
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", selectedUser.Username), func() {
-			err := page.brochatClient.SendFriendRequest(&chat.AuthInfo{
-				AccessToken: appContext.UserSession.Auth.AccessToken,
-				TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-			}, &chat.SendFriendRequestRequest{
+			err := page.brochatClient.SendFriendRequest(appContext.GetAuthInfo(), &chat.SendFriendRequestRequest{
 				RequestedUserId: selectedUser.Id,
 			})
 
@@ -87,6 +84,7 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 				}
 			}
 
+			page.table.RemoveRow(row)
 			nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Sent to %s", selectedUser.Username))
 		})
 	})
@@ -140,10 +138,7 @@ func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *stat
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	usrs, err := page.brochatClient.GetUsers(&chat.AuthInfo{
-		AccessToken: appContext.UserSession.Auth.AccessToken,
-		TokenType:   DEFAULT_AUTH_TOKEN_TYPE,
-	}, true, true, 1, 10, "")
+	usrs, err := page.brochatClient.GetUsers(appContext.GetAuthInfo(), true, true, 1, 10, "")
 
 	if err != nil {
 		nav.AlertFatal(app, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())
