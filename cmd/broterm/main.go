@@ -44,7 +44,7 @@ func main() {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	feedClient := state.NewFeedClient(dialer, "localhost:8083")
+	feedClient := state.NewFeedClient(dialer, "localhost:8083", brochatClient)
 
 	// Setup the application context
 	context, cancel := context.WithCancel(context.Background())

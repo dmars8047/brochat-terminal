@@ -19,6 +19,7 @@ const (
 )
 
 type FeedClient struct {
+	brochatUserClient  *chat.BroChatUserClient
 	dialer             *websocket.Dialer
 	url                url.URL
 	conn               *websocket.Conn
@@ -26,8 +27,9 @@ type FeedClient struct {
 	Closed             bool
 }
 
-func NewFeedClient(dialer *websocket.Dialer, baseUrl string) *FeedClient {
+func NewFeedClient(dialer *websocket.Dialer, baseUrl string, brochatUserClient *chat.BroChatUserClient) *FeedClient {
 	return &FeedClient{
+		brochatUserClient:  brochatUserClient,
 		dialer:             dialer,
 		url:                url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
 		ChatMessageChannel: make(chan chat.ChatMessage, 1),
@@ -92,6 +94,16 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 					}
 
 					c.ChatMessageChannel <- chatMessage
+				case chat.FEED_MESSAGE_TYPE_USER_PROFILE_UPDATED:
+					usrProfile, err := c.brochatUserClient.GetUser(appContext.GetAuthInfo(), appContext.BrochatUser.Id)
+
+					if err != nil {
+						log.Printf("An error occurred during the processing of a user profile updated event. "+
+							"The call to retrieve user data resulted in the following error: %s", err.Error())
+						continue
+					}
+
+					appContext.BrochatUser = usrProfile
 				}
 			}
 		}
@@ -156,7 +168,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 }
 
 func (c *FeedClient) SendFeedMessage(messageType chat.FeedMessageType, content interface{}) error {
-	if !c.Closed || c.conn == nil {
+	if c.Closed || c.conn == nil {
 		return errors.New("feed connection failure")
 	}
 
