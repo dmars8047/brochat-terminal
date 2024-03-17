@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -16,12 +18,14 @@ type AcceptFriendRequestPage struct {
 	brochatClient       *chat.BroChatUserClient
 	userPendingRequests map[uint8]chat.UserRelationship
 	table               *tview.Table
+	feedClient          *state.FeedClient
 }
 
 // NewAcceptFriendRequestPage creates a new accept friend request page
-func NewAcceptFriendRequestPage(brochatClient *chat.BroChatUserClient) *AcceptFriendRequestPage {
+func NewAcceptFriendRequestPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *AcceptFriendRequestPage {
 	return &AcceptFriendRequestPage{
 		brochatClient:       brochatClient,
+		feedClient:          feedClient,
 		userPendingRequests: make(map[uint8]chat.UserRelationship, 0),
 		table:               tview.NewTable(),
 	}
@@ -46,8 +50,16 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 			return
 		}
 
+		authInfo, ok := appContext.GetAuthInfo()
+
+		if !ok {
+			log.Printf("Valid user authentication information not found. Redirecting to login page.")
+			nav.NavigateTo(LOGIN_PAGE, nil)
+			return
+		}
+
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", selectedUser.Username), func() {
-			err := page.brochatClient.AcceptFriendRequest(appContext.GetAuthInfo(), &chat.AcceptFriendRequestRequest{
+			err := page.brochatClient.AcceptFriendRequest(&authInfo, &chat.AcceptFriendRequestRequest{
 				InitiatingUserId: selectedUser.UserId,
 			})
 
@@ -64,14 +76,6 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 				return
 			}
 
-			// Update the relationship type
-			for i := 0; i < len(appContext.BrochatUser.Relationships); i++ {
-				if selectedUser.UserId == appContext.BrochatUser.Relationships[i].UserId {
-					appContext.BrochatUser.Relationships[i].Type = chat.RELATIONSHIP_TYPE_FRIEND
-					break
-				}
-			}
-
 			page.table.RemoveRow(row)
 			nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Accepted Friend Request from %s", selectedUser.Username))
 		})
@@ -79,7 +83,7 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 
 	page.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			nav.NavigateTo(HOME_PAGE, nil)
+			nav.NavigateTo(FRIENDS_LIST_PAGE, nil)
 			page.userPendingRequests = make(map[uint8]chat.UserRelationship, 0)
 			page.table.Clear()
 		}
@@ -102,17 +106,54 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
+	pageContext, cancel := context.WithCancel(appContext.Context)
+
 	nav.Register(ACCEPT_FRIEND_REQUEST_PAGE, grid, true, false,
 		func(param interface{}) {
-			page.onPageLoad(appContext)
+			pageContext, cancel = context.WithCancel(appContext.Context)
+			page.onPageLoad(app, appContext, pageContext, page.feedClient)
 		},
 		func() {
 			page.onPageClose()
+			cancel()
 		})
 }
 
 // onPageLoad is called when the page is navigated to
-func (page *AcceptFriendRequestPage) onPageLoad(appContext *state.ApplicationContext) {
+func (page *AcceptFriendRequestPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext,
+	pageContext context.Context, feedClient *state.FeedClient) {
+
+	page.populateTable(appContext.GetBrochatUser())
+
+	go func() {
+		subId, userProfileUpdatesChannel := feedClient.SubscribeToUserProfileUpdates()
+
+		defer feedClient.UnsubscribeFromUserProfileUpdates(subId)
+
+		for {
+			select {
+			case <-pageContext.Done():
+				return
+			case updateCode := <-userProfileUpdatesChannel:
+				if updateCode == chat.USER_PROFILE_UPDATE_REASON_RELATIONSHIP_UPDATE {
+					page.table.Clear()
+					app.QueueUpdateDraw(func() {
+						page.populateTable(appContext.GetBrochatUser())
+					})
+				}
+			}
+		}
+	}()
+}
+
+// onPageClose is called when the page is navigated away from
+func (page *AcceptFriendRequestPage) onPageClose() {
+	page.userPendingRequests = make(map[uint8]chat.UserRelationship)
+	page.table.Clear()
+}
+
+// populateTable populates the users from the brochat user's relationships into the table
+func (page *AcceptFriendRequestPage) populateTable(brochatUser chat.User) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
@@ -128,7 +169,7 @@ func (page *AcceptFriendRequestPage) onPageLoad(appContext *state.ApplicationCon
 
 	row := 1
 
-	for _, rel := range appContext.BrochatUser.Relationships {
+	for _, rel := range brochatUser.Relationships {
 		if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
 			page.table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
 			var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
@@ -138,10 +179,4 @@ func (page *AcceptFriendRequestPage) onPageLoad(appContext *state.ApplicationCon
 			row++
 		}
 	}
-}
-
-// onPageClose is called when the page is navigated away from
-func (page *AcceptFriendRequestPage) onPageClose() {
-	page.userPendingRequests = make(map[uint8]chat.UserRelationship)
-	page.table.Clear()
 }

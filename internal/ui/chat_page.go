@@ -1,7 +1,10 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"log"
+	"sync"
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
@@ -61,11 +64,15 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 	grid.AddItem(page.textArea, 1, 0, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 2, 0, 1, 1, 0, 0, false)
 
+	pageContext, cancel := context.WithCancel(appContext.Context)
+
 	nav.Register(CHAT_PAGE, grid, true, false,
 		func(param interface{}) {
-			page.onPageLoad(param, app, appContext, nav)
+			pageContext, cancel = context.WithCancel(appContext.Context)
+			page.onPageLoad(param, app, appContext, nav, pageContext)
 		},
 		func() {
+			cancel()
 			page.onPageClose(appContext)
 		})
 }
@@ -74,7 +81,8 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 func (page *ChatPage) onPageLoad(param interface{},
 	app *tview.Application,
 	appContext *state.ApplicationContext,
-	nav *PageNavigator) {
+	nav *PageNavigator,
+	pageContext context.Context) {
 
 	// The param should be a ChatParams struct
 	chatParam, ok := param.(ChatPageParameters)
@@ -84,8 +92,16 @@ func (page *ChatPage) onPageLoad(param interface{},
 		return
 	}
 
+	authInfo, ok := appContext.GetAuthInfo()
+
+	if !ok {
+		log.Printf("Valid user authentication information not found. Redirecting to login page.")
+		nav.NavigateTo(LOGIN_PAGE, nil)
+		return
+	}
+
 	// Get the channel
-	channel, err := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), chatParam.channel_id)
+	channel, err := page.brochatClient.GetChannelManifest(&authInfo, chatParam.channel_id)
 
 	if err != nil {
 		nav.Alert("home:chat:alert:err", err.Error())
@@ -98,8 +114,11 @@ func (page *ChatPage) onPageLoad(param interface{},
 		page.textView.SetTitle(fmt.Sprintf(" %s ", chatParam.title))
 	}
 
+	// Get the color manifest
+	colorManifest := getColorManifest(channel.Users)
+
 	// Get the channel messages
-	messages, err := page.brochatClient.GetChannelMessages(appContext.GetAuthInfo(), chatParam.channel_id)
+	messages, err := page.brochatClient.GetChannelMessages(&authInfo, chatParam.channel_id)
 
 	if err != nil {
 		nav.AlertFatal(app, "home:chat:alert:err", err.Error())
@@ -116,11 +135,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 		var senderUsername string
 		var msg = messages[i]
 
-		color := CHAT_COLOR_TWO
-
-		if msg.SenderUserId == appContext.BrochatUser.Id {
-			color = CHAT_COLOR_ONE
-		}
+		color := colorManifest[msg.SenderUserId]
 
 		for _, u := range channel.Users {
 			if u.Id == msg.SenderUserId {
@@ -129,17 +144,14 @@ func (page *ChatPage) onPageLoad(param interface{},
 			}
 		}
 
+		// If for some reason the user info is not found just make the username "Unknown User"
 		if senderUsername == "" {
-			// Make a request to get the channel manifest
-			// This is a fallback in case the user info is not in the channel manifest for some reason (maybe the just joined the channel)
-			newChannel, getChanErr := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), chatParam.channel_id)
+			senderUsername = "Unknown User"
+		}
 
-			if getChanErr != nil {
-				nav.Alert("home:chat:alert:err", getChanErr.Error())
-				return
-			}
-
-			channel = newChannel
+		// If the color is not found then just make it red
+		if color == "" {
+			color = "#FF0000"
 		}
 
 		var dateString string
@@ -157,6 +169,8 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 	page.textView.ScrollToEnd()
 
+	brochatUser := appContext.GetBrochatUser()
+
 	// Set the chat context
 	appContext.SetChatSession(channel)
 
@@ -172,7 +186,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 				page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessage{
 					ChannelId:    channel.Id,
 					Content:      text,
-					SenderUserId: appContext.BrochatUser.Id,
+					SenderUserId: brochatUser.Id,
 				})
 
 				page.textArea.SetText("", false)
@@ -186,44 +200,88 @@ func (page *ChatPage) onPageLoad(param interface{},
 		return event
 	})
 
+	mux := sync.RWMutex{}
+
+	// Start the listener for channel updates
+	go func() {
+		subscriptionId, channelUpdateChannel := page.feedClient.SubscribeToChannelUpdates()
+
+		defer page.feedClient.UnsubscribeFromChannelUpdates(subscriptionId)
+
+		for {
+			select {
+			case <-pageContext.Done():
+				return
+			case eventChannelId := <-channelUpdateChannel:
+				if eventChannelId == channel.Id {
+					newChannel, err := page.brochatClient.GetChannelManifest(&authInfo, channel.Id)
+
+					if err != nil {
+						nav.Alert("home:chat:alert:err", err.Error())
+						return
+					}
+
+					usersForManifest := newChannel.Users
+
+					for _, u := range newChannel.Users {
+						// if the user is not in the manifest then add them
+						if _, ok := colorManifest[u.Id]; !ok {
+							usersForManifest = append(usersForManifest, u)
+						}
+					}
+
+					mux.Lock()
+					colorManifest = getColorManifest(usersForManifest)
+					mux.Unlock()
+
+					channel = newChannel
+				}
+			}
+		}
+	}()
+
 	// Start the chat message listener
 	go func(ch *chat.Channel, a *tview.Application, tv *tview.TextView) {
-		for msg := range page.feedClient.ChatMessageChannel {
-			if msg.ChannelId == ch.Id {
-				a.QueueUpdateDraw(func() {
-					var senderUsername string
-					color := "#C061CB"
+		subscriptionId, chatMsgChannel := page.feedClient.SubscribeToChatMessages()
+		defer page.feedClient.UnsubscribeFromChatMessages(subscriptionId)
 
-					if msg.SenderUserId == appContext.BrochatUser.Id {
-						color = "#33DA7A"
-					}
+		for {
+			select {
+			case <-pageContext.Done():
+				return
+			case msg := <-chatMsgChannel:
+				if msg.ChannelId == ch.Id {
+					a.QueueUpdateDraw(func() {
+						var senderUsername string
 
-					for _, u := range ch.Users {
-						if u.Id == msg.SenderUserId {
-							senderUsername = u.Username
-							break
-						}
-					}
+						mux.RLock()
+						color := colorManifest[msg.SenderUserId]
+						mux.RUnlock()
 
-					if senderUsername == "" {
-						// Make a request to get the channel manifest
-						// This is a fallback in case the user info is not in the channel manifest for some reason (maybe the just joined the channel)
-						newChannel, getChanErr := page.brochatClient.GetChannelManifest(appContext.GetAuthInfo(), ch.Id)
-
-						if getChanErr != nil {
-							nav.Alert("home:chat:alert:err", getChanErr.Error())
-							return
+						for _, u := range ch.Users {
+							if u.Id == msg.SenderUserId {
+								senderUsername = u.Username
+								break
+							}
 						}
 
-						channel = newChannel
-					}
+						// If for some reason the user info is not found just make the username "Unknown User"
+						if senderUsername == "" {
+							senderUsername = "Unknown User"
+						}
 
-					dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
+						// If the color is not found then just make it red
+						if color == "" {
+							color = "#FF0000"
+						}
 
-					msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
-					tv.Write([]byte(msgString + "\n"))
-					tv.ScrollToEnd()
-				})
+						dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
+
+						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+						tv.Write([]byte(msgString + "\n"))
+						tv.ScrollToEnd()
+					})
+				}
 			}
 		}
 	}(channel, app, page.textView)
@@ -247,4 +305,35 @@ func (page *ChatPage) onPageClose(
 type ChatPageParameters struct {
 	channel_id string
 	title      string
+}
+
+// getColorManifest takes in a slice of users and assigns each users and a color.
+// The color manifest is a map of user ids to hex colors.
+// The colors are assigned based upon the users index (position) in the slice.
+func getColorManifest(users []chat.UserInfo) map[string]string {
+	var possibleColors = []string{
+		"#33DA7A", // Light Green
+		"#C061CB", // Lilac
+		"#00FF00", // Green
+		"#0000FF", // Blue
+		"#FFFF00", // Yellow
+		"#FF00FF", // Magenta
+		"#00FFFF", // Cyan
+		"#FFA500", // Orange
+		"#800080", // Purple
+		"#008000", // Dark Green
+		"#008080", // Teal
+	}
+
+	colorManifest := make(map[string]string)
+
+	for i, user := range users {
+		if i >= len(possibleColors) {
+			i = i % len(possibleColors)
+		}
+
+		colorManifest[user.Id] = possibleColors[i]
+	}
+
+	return colorManifest
 }

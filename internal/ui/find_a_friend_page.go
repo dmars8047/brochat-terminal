@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -52,8 +53,16 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 			return
 		}
 
+		authInfo, ok := appContext.GetAuthInfo()
+
+		if !ok {
+			log.Printf("Valid user authentication information not found. Redirecting to login page.")
+			nav.NavigateTo(LOGIN_PAGE, nil)
+			return
+		}
+
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", selectedUser.Username), func() {
-			err := page.brochatClient.SendFriendRequest(appContext.GetAuthInfo(), &chat.SendFriendRequestRequest{
+			err := page.brochatClient.SendFriendRequest(&authInfo, &chat.SendFriendRequestRequest{
 				RequestedUserId: selectedUser.Id,
 			})
 
@@ -70,20 +79,6 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 				return
 			}
 
-			// Update the relationship type
-			for i := 0; i < len(appContext.BrochatUser.Relationships); i++ {
-				if selectedUser.Id == appContext.BrochatUser.Relationships[i].UserId {
-					existingRelationshipType := appContext.BrochatUser.Relationships[i].Type
-
-					if existingRelationshipType == chat.RELATIONSHIP_TYPE_DEFAULT {
-						appContext.BrochatUser.Relationships[i].Type = chat.RELATIONSHIP_TYPE_FRIENDSHIP_REQUESTED
-					} else {
-						appContext.BrochatUser.Relationships[i].Type = existingRelationshipType | chat.RELATIONSHIP_TYPE_FRIENDSHIP_REQUESTED
-					}
-					break
-				}
-			}
-
 			page.table.RemoveRow(row)
 			nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Sent to %s", selectedUser.Username))
 		})
@@ -91,7 +86,7 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 
 	page.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			nav.NavigateTo(HOME_PAGE, nil)
+			nav.NavigateTo(FRIENDS_LIST_PAGE, nil)
 			page.users = make(map[uint8]chat.UserInfo, 0)
 			page.table.Clear()
 		}
@@ -125,6 +120,14 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 
 // onPageLoad is called when the find a friend page is navigated to
 func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+	authInfo, ok := appContext.GetAuthInfo()
+
+	if !ok {
+		log.Printf("Valid user authentication information not found. Redirecting to login page.")
+		nav.NavigateTo(LOGIN_PAGE, nil)
+		return
+	}
+
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
@@ -138,7 +141,7 @@ func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *stat
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	usrs, err := page.brochatClient.GetUsers(appContext.GetAuthInfo(), true, true, 1, 10, "")
+	usrs, err := page.brochatClient.GetUsers(&authInfo, true, true, 1, 10, "")
 
 	if err != nil {
 		nav.AlertFatal(app, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())

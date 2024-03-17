@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 )
 
@@ -19,28 +21,126 @@ const (
 )
 
 type FeedClient struct {
-	brochatUserClient  *chat.BroChatUserClient
-	dialer             *websocket.Dialer
-	url                url.URL
-	conn               *websocket.Conn
-	ChatMessageChannel chan chat.ChatMessage
-	Closed             bool
+	brochatUserClient         *chat.BroChatUserClient
+	dialer                    *websocket.Dialer
+	url                       url.URL
+	conn                      *websocket.Conn
+	chatMessageChannels       map[string]chan chat.ChatMessage
+	userProfileUpdateChannels map[string]chan chat.UserProfileUpdateCode
+	channelUpdateChannels     map[string]chan string
+	Closed                    bool
+	mu                        sync.RWMutex
 }
 
+// NewFeedClient creates a new instance of the feed client.
 func NewFeedClient(dialer *websocket.Dialer, baseUrl string, brochatUserClient *chat.BroChatUserClient) *FeedClient {
 	return &FeedClient{
-		brochatUserClient:  brochatUserClient,
-		dialer:             dialer,
-		url:                url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
-		ChatMessageChannel: make(chan chat.ChatMessage, 1),
+		brochatUserClient:         brochatUserClient,
+		dialer:                    dialer,
+		url:                       url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
+		chatMessageChannels:       make(map[string]chan chat.ChatMessage, 0),
+		userProfileUpdateChannels: make(map[string]chan chat.UserProfileUpdateCode, 0),
+		channelUpdateChannels:     make(map[string]chan string, 0),
+		mu:                        sync.RWMutex{},
 	}
 }
 
+// SubscribeToChatMessages subscribes to chat messages and returns a channel to receive messages on.
+// The returned string is the subscription ID and is used to unsubscribe from chat messages.
+// The returned channel will be closed when the subscription is removed. Suggested usage is to defer the call to UnsubscribeFromChatMessages.
+func (c *FeedClient) SubscribeToChatMessages() (string, <-chan chat.ChatMessage) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	id := uuid.NewString()
+	ch := make(chan chat.ChatMessage)
+	c.chatMessageChannels[id] = ch
+	return id, ch
+}
+
+// UnsubscribeFromChatMessages unsubscribes from chat messages.
+func (c *FeedClient) UnsubscribeFromChatMessages(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.chatMessageChannels[id]
+
+	if !ok {
+		return
+	}
+
+	close(ch)
+	delete(c.chatMessageChannels, id)
+}
+
+// SubscribeToUserProfileUpdates subscribes to user profile updates and returns a channel to receive updates on.
+// The returned string is the subscription ID and is used to unsubscribe from user profile updates.
+// The returned channel will be closed when the subscription is removed. Suggested usage is to defer the call to UnsubscribeFromUserProfileUpdates.
+func (c *FeedClient) SubscribeToUserProfileUpdates() (string, <-chan chat.UserProfileUpdateCode) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	id := uuid.NewString()
+	ch := make(chan chat.UserProfileUpdateCode)
+	c.userProfileUpdateChannels[id] = ch
+	return id, ch
+}
+
+// UnsubscribeFromUserProfileUpdates unsubscribes from user profile updates.
+func (c *FeedClient) UnsubscribeFromUserProfileUpdates(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.userProfileUpdateChannels[id]
+
+	if !ok {
+		return
+	}
+
+	close(ch)
+	delete(c.userProfileUpdateChannels, id)
+}
+
+// SubscribeToChannelUpdates subscribes to channel updates and returns a channel to receive updates on.
+// The returned string is the subscription ID and is used to unsubscribe from channel updates.
+// The returned channel will be closed when the subscription is removed. Suggested usage is to defer the call to UnsubscribeFromChannelUpdates.
+func (c *FeedClient) SubscribeToChannelUpdates() (string, <-chan string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	id := uuid.NewString()
+	ch := make(chan string)
+
+	c.channelUpdateChannels[id] = ch
+
+	return id, ch
+}
+
+// UnsubscribeFromChannelUpdates unsubscribes from channel updates.
+func (c *FeedClient) UnsubscribeFromChannelUpdates(id string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	ch, ok := c.channelUpdateChannels[id]
+
+	if !ok {
+		return
+	}
+
+	close(ch)
+	delete(c.channelUpdateChannels, id)
+}
+
 func (c *FeedClient) Connect(appContext *ApplicationContext) error {
-	c.ChatMessageChannel = make(chan chat.ChatMessage, 1)
+
+	authInfo, ok := appContext.GetAuthInfo()
+
+	if !ok {
+		return errors.New("no valid authentication information available for feed connection")
+	}
 
 	headers := http.Header{}
-	headers.Set("Authorization", "Bearer "+appContext.GetAuthInfo().AccessToken)
+	headers.Set("Authorization", "Bearer "+authInfo.AccessToken)
 
 	conn, _, err := c.dialer.Dial(c.url.String(), headers)
 
@@ -78,32 +178,83 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 				msgErr := json.Unmarshal(message, &feedMessage)
 
 				if msgErr != nil {
-					log.Printf("Error unmarshalling feed message: %s", msgErr.Error())
+					log.Printf("Error unmarshaling feed message: %s", msgErr.Error())
 					continue
 				}
 
 				switch feedMessage.Type {
+				case chat.FEED_MESSAGE_TYPE_CHANNEL_UPDATED:
+					var channelUpdatedEvent chat.ChannelUpdatedEvent
+
+					chtMsgErr := json.Unmarshal(feedMessage.Content, &channelUpdatedEvent)
+
+					if chtMsgErr != nil {
+						log.Printf("Error unmarshaling channel updated event during channel updated event processing: %s", chtMsgErr.Error())
+						continue
+					}
+
+					c.mu.RLock()
+
+					for ch := range c.channelUpdateChannels {
+						c.channelUpdateChannels[ch] <- channelUpdatedEvent.ChannelId
+					}
+
+					c.mu.RUnlock()
 				case chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE:
 					var chatMessage chat.ChatMessage
 
 					chtMsgErr := json.Unmarshal(feedMessage.Content, &chatMessage)
 
 					if chtMsgErr != nil {
-						// TODO: figure out what to do with these errors.
+						log.Printf("Error unmarshaling chat message during chat message event processing: %s", chtMsgErr.Error())
 						continue
 					}
 
-					c.ChatMessageChannel <- chatMessage
+					c.mu.RLock()
+
+					for ch := range c.chatMessageChannels {
+						c.chatMessageChannels[ch] <- chatMessage
+					}
+
+					c.mu.RUnlock()
 				case chat.FEED_MESSAGE_TYPE_USER_PROFILE_UPDATED:
-					usrProfile, err := c.brochatUserClient.GetUser(appContext.GetAuthInfo(), appContext.BrochatUser.Id)
+					brochatUser := appContext.GetBrochatUser()
+
+					authInfo, ok := appContext.GetAuthInfo()
+
+					if !ok {
+						log.Println("No valid authentication information available for user profile updated event processing")
+						appContext.CancelUserSession()
+						return
+					}
+
+					usrProfile, err := c.brochatUserClient.GetUser(&authInfo, brochatUser.Id)
 
 					if err != nil {
 						log.Printf("An error occurred during the processing of a user profile updated event. "+
 							"The call to retrieve user data resulted in the following error: %s", err.Error())
+
 						continue
 					}
 
-					appContext.BrochatUser = usrProfile
+					appContext.SetBrochatUser(*usrProfile)
+
+					var userProfileUpdatedEvent chat.UserProfileUpdatedEvent
+
+					chtMsgErr := json.Unmarshal(feedMessage.Content, &userProfileUpdatedEvent)
+
+					if chtMsgErr != nil {
+						log.Printf("Error unmarshaling user profile updated event during user profile updated event processing: %s", chtMsgErr.Error())
+						continue
+					}
+
+					c.mu.RLock()
+
+					for ch := range c.userProfileUpdateChannels {
+						c.userProfileUpdateChannels[ch] <- userProfileUpdatedEvent.UpdateCode
+					}
+
+					c.mu.RUnlock()
 				}
 			}
 		}
@@ -113,7 +264,22 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 		for {
 			select {
 			case <-appContext.userSession.context.Done():
-				close(c.ChatMessageChannel)
+				c.mu.Lock()
+				defer c.mu.Unlock()
+
+				// Close all chat message channels
+				for ch := range c.chatMessageChannels {
+					close(c.chatMessageChannels[ch])
+				}
+
+				clear(c.chatMessageChannels)
+
+				// Close all user profile update channels
+				for ch := range c.userProfileUpdateChannels {
+					close(c.userProfileUpdateChannels[ch])
+				}
+
+				clear(c.userProfileUpdateChannels)
 
 				// Close the connection
 				defer func() {

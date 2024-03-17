@@ -1,6 +1,8 @@
 package ui
 
 import (
+	"context"
+
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/gdamore/tcell/v2"
@@ -16,13 +18,15 @@ const (
 
 type RoomListPage struct {
 	brochatClient *chat.BroChatUserClient
+	feedClient    *state.FeedClient
 	table         *tview.Table
 	userRooms     map[int]chat.Room
 }
 
-func NewRoomListPage(brochatClient *chat.BroChatUserClient) *RoomListPage {
+func NewRoomListPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *RoomListPage {
 	return &RoomListPage{
 		brochatClient: brochatClient,
+		feedClient:    feedClient,
 		table:         tview.NewTable(),
 		userRooms:     make(map[int]chat.Room, 0),
 	}
@@ -88,16 +92,48 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
+	pageContext, cancel := context.WithCancel(appContext.Context)
+
 	nav.Register(ROOM_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
-			page.onPageLoad(appContext)
+			pageContext, cancel = context.WithCancel(appContext.Context)
+			page.onPageLoad(app, appContext, pageContext)
 		},
 		func() {
 			page.onPageClose()
+			cancel()
 		})
 }
 
-func (page *RoomListPage) onPageLoad(appContext *state.ApplicationContext) {
+func (page *RoomListPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, pageContext context.Context) {
+	page.populateTable(appContext.GetBrochatUser())
+
+	// Create a go routine to monitor for changes to the user's rooms via a user profile update event
+	go func() {
+		subId, channel := page.feedClient.SubscribeToUserProfileUpdates()
+		defer page.feedClient.UnsubscribeFromUserProfileUpdates(subId)
+
+		for {
+			select {
+			case <-pageContext.Done():
+				return
+			case eventCode := <-channel:
+				if eventCode == chat.USER_PROFILE_UPDATE_CODE_ROOM_UPDATE {
+					app.QueueUpdateDraw(func() {
+						page.populateTable(appContext.GetBrochatUser())
+					})
+				}
+			}
+		}
+	}()
+}
+
+func (page *RoomListPage) onPageClose() {
+	page.userRooms = make(map[int]chat.Room, 0)
+	page.table.Clear()
+}
+
+func (page *RoomListPage) populateTable(brochatUser chat.User) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Name").
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
@@ -111,7 +147,7 @@ func (page *RoomListPage) onPageLoad(appContext *state.ApplicationContext) {
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	for i, rel := range appContext.BrochatUser.Rooms {
+	for i, rel := range brochatUser.Rooms {
 		row := i + 1
 
 		page.table.SetCell(row, 0, tview.NewTableCell(rel.Name).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
@@ -119,9 +155,4 @@ func (page *RoomListPage) onPageLoad(appContext *state.ApplicationContext) {
 
 		page.userRooms[row] = rel
 	}
-}
-
-func (page *RoomListPage) onPageClose() {
-	page.userRooms = make(map[int]chat.Room, 0)
-	page.table.Clear()
 }

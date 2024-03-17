@@ -10,10 +10,11 @@ retract (
 )
 
 require (
-	github.com/dmars8047/brolib v0.0.12
+	github.com/dmars8047/brolib v0.0.15
 	github.com/dmars8047/idamlib v0.0.3
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/rivo/tview v0.0.0-20240307173318-e804876934a1
 )

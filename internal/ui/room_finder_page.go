@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -52,16 +53,21 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 			return
 		}
 
+		authInfo, ok := appContext.GetAuthInfo()
+
+		if !ok {
+			log.Printf("Valid user authentication information not found. Redirecting to login page.")
+			nav.NavigateTo(LOGIN_PAGE, nil)
+			return
+		}
+
 		nav.Confirm(ROOM_FINDER_PAGE_CONFIRM, fmt.Sprintf("Join %s?", room.Name), func() {
-			joinRoomErr := page.brochatClient.JoinRoom(appContext.GetAuthInfo(), room.Id)
+			joinRoomErr := page.brochatClient.JoinRoom(&authInfo, room.Id)
 
 			if joinRoomErr != nil {
 				nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while joining room: %s", joinRoomErr.Error()))
 				return
 			}
-
-			// Add the room to the user's rooms
-			appContext.BrochatUser.Rooms = append(appContext.BrochatUser.Rooms, room)
 
 			nav.AlertWithDoneFunc(ROOM_FINDER_PAGE_ALERT_INFO, fmt.Sprintf("You have successfuly joined the room '%s'.", room.Name), func(buttonIndex int, buttonLabel string) {
 				nav.Pages.HidePage(ROOM_FINDER_PAGE_ALERT_INFO).RemovePage(ROOM_FINDER_PAGE_ALERT_INFO)
@@ -74,7 +80,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 
 	page.table.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
-			nav.NavigateTo(HOME_PAGE, nil)
+			nav.NavigateTo(ROOM_LIST_PAGE, nil)
 			page.publicRooms = make(map[int]chat.Room, 0)
 			page.table.Clear()
 		}
@@ -108,6 +114,14 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 
 // onPageLoad is called when the room finder page is navigated to
 func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav *PageNavigator) {
+	authInfo, ok := appContext.GetAuthInfo()
+
+	if !ok {
+		log.Printf("Valid user authentication information not found. Redirecting to login page.")
+		nav.NavigateTo(LOGIN_PAGE, nil)
+		return
+	}
+
 	page.table.SetCell(0, 0, tview.NewTableCell("Name").
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
@@ -121,7 +135,7 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	rooms, err := page.brochatClient.GetRooms(appContext.GetAuthInfo())
+	rooms, err := page.brochatClient.GetRooms(&authInfo)
 
 	if err != nil {
 		nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while retrieving public rooms: %s", err.Error()))

@@ -137,22 +137,27 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 			return
 		}
 
-		appContext.SetUserSession(state.UserAuth{
+		userAuth := state.UserAuth{
 			AccessToken:     loginResponse.Token,
 			TokenExpiration: time.Now().Add(time.Duration(loginResponse.ExpiresIn * int64(time.Second))),
-		})
+		}
+
+		appContext.SetUserSession(userAuth)
 
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		brochatUser, err := page.brochatClient.GetUser(appContext.GetAuthInfo(), loginResponse.UserId)
+		brochatUser, err := page.brochatClient.GetUser(&chat.AuthInfo{
+			AccessToken: loginResponse.Token,
+			TokenType:   "Bearer",
+		}, loginResponse.UserId)
 
 		if err != nil {
 			nav.Alert("auth:login:alert:err", err.Error())
 			return
 		}
 
-		appContext.BrochatUser = brochatUser
+		appContext.SetBrochatUser(*brochatUser)
 
 		err = page.feedClient.Connect(appContext)
 
@@ -177,13 +182,14 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
 	nav.Register(LOGIN_PAGE, grid, true, false, func(param interface{}) {
-		page.onPageLoad()
+		page.onPageLoad(appContext)
 	}, func() {
 		page.onPageClose()
 	})
 }
 
-func (page *LoginPage) onPageLoad() {
+func (page *LoginPage) onPageLoad(appContext *state.ApplicationContext) {
+	appContext.CancelUserSession()
 	page.loginForm.SetFocus(0)
 }
 

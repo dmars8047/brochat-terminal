@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"log"
 	"time"
 
 	"github.com/dmars8047/broterm/internal/state"
@@ -85,7 +86,15 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	logoutButton.SetSelectedFunc(func() {
-		err := page.userAuthClient.Logout(appContext.GetAuthInfo().AccessToken)
+		authInfo, ok := appContext.GetAuthInfo()
+
+		if !ok {
+			log.Printf("Valid user authentication information not found. Redirecting to login page.")
+			nav.NavigateTo(LOGIN_PAGE, nil)
+			return
+		}
+
+		err := page.userAuthClient.Logout(authInfo.AccessToken)
 
 		if err != nil {
 			nav.AlertFatal(app, "home:menu:alert:err", err.Error())

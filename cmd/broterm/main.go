@@ -83,7 +83,7 @@ func main() {
 	homePage.Setup(app, appContext, nav)
 
 	// Setup the friends list page
-	friendsListPage := ui.NewFriendsListPage(brochatClient)
+	friendsListPage := ui.NewFriendsListPage(brochatClient, feedClient)
 	friendsListPage.Setup(app, appContext, nav)
 
 	// Setup the find a friend page
@@ -91,11 +91,11 @@ func main() {
 	findAFriendPage.Setup(app, appContext, nav)
 
 	// Setup the accept friend request page
-	acceptFriendRequestPage := ui.NewAcceptFriendRequestPage(brochatClient)
+	acceptFriendRequestPage := ui.NewAcceptFriendRequestPage(brochatClient, feedClient)
 	acceptFriendRequestPage.Setup(app, appContext, nav)
 
 	// Setup the room list page
-	roomListPage := ui.NewRoomListPage(brochatClient)
+	roomListPage := ui.NewRoomListPage(brochatClient, feedClient)
 	roomListPage.Setup(app, appContext, nav)
 
 	// Setup the room editor page

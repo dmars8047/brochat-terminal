@@ -2,6 +2,7 @@ package ui
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -53,6 +54,14 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 	page.form.AddDropDown("Membership Model", []string{string(chat.PUBLIC_MEMBERSHIP_MODEL), string(chat.FRIENDS_MEMBERSHIP_MODEL)}, -1, nil)
 
 	page.form.AddButton("Submit", func() {
+		authInfo, ok := appContext.GetAuthInfo()
+
+		if !ok {
+			log.Printf("Valid user authentication information not found. Redirecting to login page.")
+			nav.NavigateTo(LOGIN_PAGE, nil)
+			return
+		}
+
 		nameInput, ok := page.form.GetFormItemByLabel("Room Name").(*tview.InputField)
 
 		if !ok {
@@ -90,14 +99,12 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 			MembershipModel: optstr,
 		}
 
-		room, createRoomErr := page.brochatClient.CreateRoom(appContext.GetAuthInfo(), request)
+		_, createRoomErr := page.brochatClient.CreateRoom(&authInfo, request)
 
 		if createRoomErr != nil {
 			nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", createRoomErr.Error()))
 			return
 		}
-
-		appContext.BrochatUser.Rooms = append(appContext.BrochatUser.Rooms, *room)
 
 		nav.AlertWithDoneFunc(ROOM_EDITOR_PAGE_ALERT_INFO, "Room creation successful!", func(buttonIndex int, buttonLabel string) {
 			nav.NavigateTo(ROOM_LIST_PAGE, nil)
@@ -106,6 +113,14 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 
 	page.form.AddButton("Back", func() {
 		nav.NavigateTo(ROOM_LIST_PAGE, nil)
+	})
+
+	page.form.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+		if event.Key() == tcell.KeyEscape {
+			nav.NavigateTo(ROOM_LIST_PAGE, nil)
+		}
+
+		return event
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)

@@ -1,7 +1,9 @@
 package ui
 
 import (
+	"context"
 	"fmt"
+	"log"
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
@@ -18,14 +20,16 @@ const (
 
 type FriendsListPage struct {
 	brochatClient  *chat.BroChatUserClient
+	feedClient     *state.FeedClient
 	table          *tview.Table
 	tvInstructions *tview.TextView
 	userFriends    map[uint8]chat.UserRelationship
 }
 
-func NewFriendsListPage(brochatClient *chat.BroChatUserClient) *FriendsListPage {
+func NewFriendsListPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *FriendsListPage {
 	return &FriendsListPage{
 		brochatClient:  brochatClient,
+		feedClient:     feedClient,
 		table:          tview.NewTable(),
 		tvInstructions: tview.NewTextView(),
 		userFriends:    make(map[uint8]chat.UserRelationship, 0),
@@ -91,16 +95,69 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(page.tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
+	pageContext, cancel := context.WithCancel(appContext.Context)
+
 	nav.Register(FRIENDS_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
-			page.onPageLoad(app, appContext, nav)
+			pageContext, cancel = context.WithCancel(appContext.Context)
+			page.onPageLoad(app, appContext, nav, pageContext)
 		},
 		func() {
 			page.onPageClose()
+			cancel()
 		})
 }
 
-func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator, pageContext context.Context) {
+
+	authInfo, ok := appContext.GetAuthInfo()
+
+	if !ok {
+		log.Printf("Valid user authentication information not found. Redirecting to login page.")
+		nav.NavigateTo(LOGIN_PAGE, nil)
+		return
+	}
+
+	page.populateTable(appContext.GetBrochatUser(), authInfo, app, nav)
+
+	// Create a goroutine to listen for updates to the user's relationships
+	// If one is recieved then redraw the table
+	go func() {
+		subId, userProfileUpdatesChannel := page.feedClient.SubscribeToUserProfileUpdates()
+
+		defer page.feedClient.UnsubscribeFromUserProfileUpdates(subId)
+
+		for {
+			select {
+			case <-pageContext.Done():
+				return
+			case updateCode := <-userProfileUpdatesChannel:
+				authInfo, ok := appContext.GetAuthInfo()
+
+				if !ok {
+					log.Printf("Valid user authentication information not found. Redirecting to login page.")
+					nav.NavigateTo(LOGIN_PAGE, nil)
+					return
+				}
+
+				if updateCode == chat.USER_PROFILE_UPDATE_REASON_RELATIONSHIP_UPDATE {
+					page.table.Clear()
+					app.QueueUpdateDraw(func() {
+						page.populateTable(appContext.GetBrochatUser(), authInfo, app, nav)
+					})
+				}
+			}
+		}
+	}()
+
+}
+
+func (page *FriendsListPage) onPageClose() {
+	page.userFriends = make(map[uint8]chat.UserRelationship, 0)
+	page.table.Clear()
+}
+
+func (page *FriendsListPage) populateTable(brochatUser chat.User, authInfo chat.AuthInfo, app *tview.Application, nav *PageNavigator) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
@@ -120,14 +177,12 @@ func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *stat
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	usr, err := page.brochatClient.GetUser(appContext.GetAuthInfo(), appContext.BrochatUser.Id)
+	usr, err := page.brochatClient.GetUser(&authInfo, brochatUser.Id)
 
 	if err != nil {
 		nav.AlertFatal(app, FRIENDS_LIST_PAGE_ALERT_ERR, err.Error())
 		return
 	}
-
-	appContext.BrochatUser = usr
 
 	countOfPendingFriendRequests := 0
 
@@ -159,9 +214,4 @@ func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *stat
 
 		page.userFriends[uint8(row)] = rel
 	}
-}
-
-func (page *FriendsListPage) onPageClose() {
-	page.userFriends = make(map[uint8]chat.UserRelationship, 0)
-	page.table.Clear()
 }
