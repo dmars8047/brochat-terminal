@@ -15,14 +15,14 @@ const ACCEPT_FRIEND_REQUEST_PAGE PageSlug = "accept_friend_request"
 
 // AcceptFriendRequestPage is the page for accepting friend requests
 type AcceptFriendRequestPage struct {
-	brochatClient       *chat.BroChatUserClient
+	brochatClient       *chat.BroChatClient
 	userPendingRequests map[uint8]chat.UserRelationship
 	table               *tview.Table
 	feedClient          *state.FeedClient
 }
 
 // NewAcceptFriendRequestPage creates a new accept friend request page
-func NewAcceptFriendRequestPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *AcceptFriendRequestPage {
+func NewAcceptFriendRequestPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *AcceptFriendRequestPage {
 	return &AcceptFriendRequestPage{
 		brochatClient:       brochatClient,
 		feedClient:          feedClient,
@@ -50,7 +50,7 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 			return
 		}
 
-		authInfo, ok := appContext.GetAuthInfo()
+		accessToken, ok := appContext.GetAccessToken()
 
 		if !ok {
 			log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -59,16 +59,20 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 		}
 
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Accept Friend Request from %s?", selectedUser.Username), func() {
-			err := page.brochatClient.AcceptFriendRequest(&authInfo, &chat.AcceptFriendRequestRequest{
+			result := page.brochatClient.AcceptFriendRequest(accessToken, chat.AcceptFriendRequestRequest{
 				InitiatingUserId: selectedUser.UserId,
 			})
 
+			err := result.Err()
+
 			if err != nil {
-				if err.Error() == "user not found or friend request not found" {
-					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request from %s Not Found", selectedUser.Username))
+				if len(result.ErrorDetails) > 0 {
+					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, result.ErrorDetails[0])
 					return
-				} else if err.Error() == "bad request" {
-					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, "Friend Request Acceptance Not Processable")
+				}
+
+				if result.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, FORBIDDEN_OPERATION_ERROR_MESSAGE)
 					return
 				}
 
@@ -114,8 +118,8 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 			page.onPageLoad(app, appContext, pageContext, page.feedClient)
 		},
 		func() {
-			page.onPageClose()
 			cancel()
+			page.onPageClose()
 		})
 }
 

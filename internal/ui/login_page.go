@@ -20,13 +20,13 @@ const (
 // LoginPage is the login page
 type LoginPage struct {
 	userAuthClient *idam.UserAuthClient
-	brochatClient  *chat.BroChatUserClient
+	brochatClient  *chat.BroChatClient
 	feedClient     *state.FeedClient
 	loginForm      *tview.Form
 }
 
 // NewLoginPage creates a new instance of the login page
-func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *LoginPage {
+func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *LoginPage {
 	return &LoginPage{
 		userAuthClient: userAuthClient,
 		brochatClient:  brochatClient,
@@ -147,17 +147,28 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 		passwordInput.SetText("")
 		emailInput.SetText("")
 
-		brochatUser, err := page.brochatClient.GetUser(&chat.AuthInfo{
-			AccessToken: loginResponse.Token,
-			TokenType:   "Bearer",
-		}, loginResponse.UserId)
+		getUserResult := page.brochatClient.GetUser(loginResponse.Token, loginResponse.UserId)
+
+		err = getUserResult.Err()
 
 		if err != nil {
+			if len(getUserResult.ErrorDetails) > 0 {
+				nav.Alert("auth:login:alert:err", getUserResult.ErrorDetails[0])
+				return
+			}
+
+			if getUserResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+				nav.Alert("auth:login:alert:err", FORBIDDEN_OPERATION_ERROR_MESSAGE)
+				return
+			}
+
 			nav.Alert("auth:login:alert:err", err.Error())
 			return
 		}
 
-		appContext.SetBrochatUser(*brochatUser)
+		brochatUser := getUserResult.Content
+
+		appContext.SetBrochatUser(brochatUser)
 
 		err = page.feedClient.Connect(appContext)
 

@@ -47,21 +47,18 @@ func (appContext *ApplicationContext) GetUserAuth() UserAuth {
 	return appContext.userSession.Auth
 }
 
-// GetAuthInfo returns the auth info for the user session. This is used to authenticate calls made using the brochat client.
-func (appContext *ApplicationContext) GetAuthInfo() (chat.AuthInfo, bool) {
+// GetAccessToken returns the auth info for the user session. This is used to authenticate calls made using the brochat client.
+func (appContext *ApplicationContext) GetAccessToken() (string, bool) {
 	if appContext.userSession == nil {
-		return chat.AuthInfo{}, false
+		return "", false
 	}
 
 	// Check if the token has expired
 	if time.Now().After(appContext.userSession.Auth.TokenExpiration) {
-		return chat.AuthInfo{}, false
+		return "", false
 	}
 
-	return chat.AuthInfo{
-		AccessToken: appContext.userSession.Auth.AccessToken,
-		TokenType:   "Bearer",
-	}, true
+	return appContext.userSession.Auth.AccessToken, true
 }
 
 // SetUserSession sets the user session

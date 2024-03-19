@@ -21,12 +21,12 @@ const (
 
 // RoomEditorPage is the room editor page
 type RoomEditorPage struct {
-	brochatClient *chat.BroChatUserClient
+	brochatClient *chat.BroChatClient
 	form          *tview.Form
 }
 
 // NewRoomEditorPage creates a new room editor page
-func NewRoomEditorPage(brochatClient *chat.BroChatUserClient) *RoomEditorPage {
+func NewRoomEditorPage(brochatClient *chat.BroChatClient) *RoomEditorPage {
 	return &RoomEditorPage{
 		brochatClient: brochatClient,
 		form:          tview.NewForm(),
@@ -54,7 +54,7 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 	page.form.AddDropDown("Membership Model", []string{string(chat.PUBLIC_MEMBERSHIP_MODEL), string(chat.FRIENDS_MEMBERSHIP_MODEL)}, -1, nil)
 
 	page.form.AddButton("Submit", func() {
-		authInfo, ok := appContext.GetAuthInfo()
+		accessToken, ok := appContext.GetAccessToken()
 
 		if !ok {
 			log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -94,14 +94,26 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 			return
 		}
 
-		request := &chat.CreateRoomRequest{
+		request := chat.CreateRoomRequest{
 			Name:            name,
 			MembershipModel: optstr,
 		}
 
-		_, createRoomErr := page.brochatClient.CreateRoom(&authInfo, request)
+		createRoomResult := page.brochatClient.CreateRoom(accessToken, request)
+
+		createRoomErr := createRoomResult.Err()
 
 		if createRoomErr != nil {
+			if len(createRoomResult.ErrorDetails) > 0 {
+				nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, createRoomResult.ErrorDetails[0])
+				return
+			}
+
+			if createRoomResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+				nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, FORBIDDEN_OPERATION_ERROR_MESSAGE)
+				return
+			}
+
 			nav.Alert(ROOM_EDITOR_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while creating user room: %s", createRoomErr.Error()))
 			return
 		}

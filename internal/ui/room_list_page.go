@@ -17,13 +17,13 @@ const (
 )
 
 type RoomListPage struct {
-	brochatClient *chat.BroChatUserClient
+	brochatClient *chat.BroChatClient
 	feedClient    *state.FeedClient
 	table         *tview.Table
 	userRooms     map[int]chat.Room
 }
 
-func NewRoomListPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *RoomListPage {
+func NewRoomListPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *RoomListPage {
 	return &RoomListPage{
 		brochatClient: brochatClient,
 		feedClient:    feedClient,
@@ -100,8 +100,8 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 			page.onPageLoad(app, appContext, pageContext)
 		},
 		func() {
-			page.onPageClose()
 			cancel()
+			page.onPageClose()
 		})
 }
 
@@ -110,14 +110,14 @@ func (page *RoomListPage) onPageLoad(app *tview.Application, appContext *state.A
 
 	// Create a go routine to monitor for changes to the user's rooms via a user profile update event
 	go func() {
-		subId, channel := page.feedClient.SubscribeToUserProfileUpdates()
+		subId, userUpdatedChannel := page.feedClient.SubscribeToUserProfileUpdates()
 		defer page.feedClient.UnsubscribeFromUserProfileUpdates(subId)
 
 		for {
 			select {
 			case <-pageContext.Done():
 				return
-			case eventCode := <-channel:
+			case eventCode := <-userUpdatedChannel:
 				if eventCode == chat.USER_PROFILE_UPDATE_CODE_ROOM_UPDATE {
 					app.QueueUpdateDraw(func() {
 						page.populateTable(appContext.GetBrochatUser())

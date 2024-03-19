@@ -17,14 +17,14 @@ const CHAT_PAGE PageSlug = "chat"
 
 // ChatPage is the chat page
 type ChatPage struct {
-	brochatClient *chat.BroChatUserClient
+	brochatClient *chat.BroChatClient
 	feedClient    *state.FeedClient
 	textView      *tview.TextView
 	textArea      *tview.TextArea
 }
 
 // NewChatPage creates a new chat page
-func NewChatPage(brochatClient *chat.BroChatUserClient, feedClient *state.FeedClient) *ChatPage {
+func NewChatPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *ChatPage {
 	return &ChatPage{
 		brochatClient: brochatClient,
 		feedClient:    feedClient,
@@ -92,7 +92,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 		return
 	}
 
-	authInfo, ok := appContext.GetAuthInfo()
+	accessToken, ok := appContext.GetAccessToken()
 
 	if !ok {
 		log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -101,12 +101,26 @@ func (page *ChatPage) onPageLoad(param interface{},
 	}
 
 	// Get the channel
-	channel, err := page.brochatClient.GetChannelManifest(&authInfo, chatParam.channel_id)
+	getChannelResult := page.brochatClient.GetChannel(accessToken, chatParam.channel_id)
+
+	err := getChannelResult.Err()
 
 	if err != nil {
+		if len(getChannelResult.ErrorDetails) > 0 {
+			nav.Alert("home:chat:alert:err", getChannelResult.ErrorDetails[0])
+			return
+		}
+
+		if getChannelResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+			nav.Alert("home:chat:alert:err", FORBIDDEN_OPERATION_ERROR_MESSAGE)
+			return
+		}
+
 		nav.Alert("home:chat:alert:err", err.Error())
 		return
 	}
+
+	channel := getChannelResult.Content
 
 	if channel.Type == chat.CHANNEL_TYPE_DIRECT_MESSAGE {
 		page.textView.SetTitle(fmt.Sprintf(" %s - %s ", channel.Users[0].Username, channel.Users[1].Username))
@@ -118,12 +132,26 @@ func (page *ChatPage) onPageLoad(param interface{},
 	colorManifest := getColorManifest(channel.Users)
 
 	// Get the channel messages
-	messages, err := page.brochatClient.GetChannelMessages(&authInfo, chatParam.channel_id)
+	getChannelMessagesResult := page.brochatClient.GetChannelMessages(accessToken, chatParam.channel_id)
+
+	err = getChannelMessagesResult.Err()
 
 	if err != nil {
+		if len(getChannelMessagesResult.ErrorDetails) > 0 {
+			nav.Alert("home:chat:alert:err", getChannelMessagesResult.ErrorDetails[0])
+			return
+		}
+
+		if getChannelMessagesResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+			nav.Alert("home:chat:alert:err", FORBIDDEN_OPERATION_ERROR_MESSAGE)
+			return
+		}
+
 		nav.AlertFatal(app, "home:chat:alert:err", err.Error())
 		return
 	}
+
+	messages := getChannelMessagesResult.Content
 
 	// Write the messages to the text view
 	w := page.textView.BatchWriter()
@@ -172,7 +200,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 	brochatUser := appContext.GetBrochatUser()
 
 	// Set the chat context
-	appContext.SetChatSession(channel)
+	appContext.SetChatSession(&channel)
 
 	page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
 		ChannelId: channel.Id,
@@ -214,12 +242,24 @@ func (page *ChatPage) onPageLoad(param interface{},
 				return
 			case eventChannelId := <-channelUpdateChannel:
 				if eventChannelId == channel.Id {
-					newChannel, err := page.brochatClient.GetChannelManifest(&authInfo, channel.Id)
+					accessToken, ok := appContext.GetAccessToken()
 
-					if err != nil {
-						nav.Alert("home:chat:alert:err", err.Error())
+					if !ok {
+						log.Println("No valid authentication information available for channel update event processing")
+						appContext.CancelUserSession()
 						return
 					}
+
+					getChannelResult := page.brochatClient.GetChannel(accessToken, channel.Id)
+
+					err := getChannelResult.Err()
+
+					if err != nil {
+						log.Printf("Error getting channel during channel update event processing: %s", err.Error())
+						return
+					}
+
+					newChannel := getChannelResult.Content
 
 					usersForManifest := newChannel.Users
 
@@ -284,7 +324,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 				}
 			}
 		}
-	}(channel, app, page.textView)
+	}(&channel, app, page.textView)
 }
 
 // onPageClose is called when the chat page is navigated away from

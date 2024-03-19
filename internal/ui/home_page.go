@@ -86,7 +86,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		SetStyle(DEFAULT_BUTTON_STYLE)
 
 	logoutButton.SetSelectedFunc(func() {
-		authInfo, ok := appContext.GetAuthInfo()
+		accessToken, ok := appContext.GetAccessToken()
 
 		if !ok {
 			log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -94,7 +94,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 			return
 		}
 
-		err := page.userAuthClient.Logout(authInfo.AccessToken)
+		err := page.userAuthClient.Logout(accessToken)
 
 		if err != nil {
 			nav.AlertFatal(app, "home:menu:alert:err", err.Error())

@@ -20,13 +20,13 @@ const (
 
 // RoomFinderPage is the room finder page
 type RoomFinderPage struct {
-	brochatClient *chat.BroChatUserClient
+	brochatClient *chat.BroChatClient
 	table         *tview.Table
 	publicRooms   map[int]chat.Room
 }
 
 // NewRoomFinderPage creates a new room finder page
-func NewRoomFinderPage(brochatClient *chat.BroChatUserClient) *RoomFinderPage {
+func NewRoomFinderPage(brochatClient *chat.BroChatClient) *RoomFinderPage {
 	return &RoomFinderPage{
 		brochatClient: brochatClient,
 		table:         tview.NewTable(),
@@ -53,7 +53,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 			return
 		}
 
-		authInfo, ok := appContext.GetAuthInfo()
+		accessToken, ok := appContext.GetAccessToken()
 
 		if !ok {
 			log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -62,10 +62,22 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 		}
 
 		nav.Confirm(ROOM_FINDER_PAGE_CONFIRM, fmt.Sprintf("Join %s?", room.Name), func() {
-			joinRoomErr := page.brochatClient.JoinRoom(&authInfo, room.Id)
+			joinRoomResult := page.brochatClient.JoinRoom(accessToken, room.Id)
+
+			joinRoomErr := joinRoomResult.Err()
 
 			if joinRoomErr != nil {
-				nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while joining room: %s", joinRoomErr.Error()))
+				if len(joinRoomResult.ErrorDetails) > 0 {
+					nav.Alert(ROOM_FINDER_PAGE_ALERT_INFO, joinRoomResult.ErrorDetails[0])
+					return
+				}
+
+				if joinRoomResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+					nav.Alert(ROOM_FINDER_PAGE_ALERT_INFO, FORBIDDEN_OPERATION_ERROR_MESSAGE)
+					return
+				}
+
+				nav.AlertFatal(app, ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while joining room: %s", joinRoomErr.Error()))
 				return
 			}
 
@@ -114,7 +126,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 
 // onPageLoad is called when the room finder page is navigated to
 func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav *PageNavigator) {
-	authInfo, ok := appContext.GetAuthInfo()
+	accessToken, ok := appContext.GetAccessToken()
 
 	if !ok {
 		log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -135,12 +147,16 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	rooms, err := page.brochatClient.GetRooms(&authInfo)
+	getRoomsResult := page.brochatClient.GetRooms(accessToken)
+
+	err := getRoomsResult.Err()
 
 	if err != nil {
 		nav.Alert(ROOM_FINDER_PAGE_ALERT_ERR, fmt.Sprintf("An error occurred while retrieving public rooms: %s", err.Error()))
 		return
 	}
+
+	rooms := getRoomsResult.Content
 
 	for i, rel := range rooms {
 		row := i + 1

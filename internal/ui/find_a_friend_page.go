@@ -20,13 +20,13 @@ const (
 
 // FindAFriendPage is the find a friend page
 type FindAFriendPage struct {
-	brochatClient *chat.BroChatUserClient
+	brochatClient *chat.BroChatClient
 	table         *tview.Table
 	users         map[uint8]chat.UserInfo
 }
 
 // NewFindAFriendPage creates a new find a friend page
-func NewFindAFriendPage(brochatClient *chat.BroChatUserClient) *FindAFriendPage {
+func NewFindAFriendPage(brochatClient *chat.BroChatClient) *FindAFriendPage {
 	return &FindAFriendPage{
 		brochatClient: brochatClient,
 		table:         tview.NewTable(),
@@ -53,7 +53,7 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 			return
 		}
 
-		authInfo, ok := appContext.GetAuthInfo()
+		accessToken, ok := appContext.GetAccessToken()
 
 		if !ok {
 			log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -62,16 +62,20 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 		}
 
 		nav.Confirm(FIND_A_FRIEND_PAGE_CONFIRM, fmt.Sprintf("Send Friend Request to %s?", selectedUser.Username), func() {
-			err := page.brochatClient.SendFriendRequest(&authInfo, &chat.SendFriendRequestRequest{
+			sendFriendRequestResult := page.brochatClient.SendFriendRequest(accessToken, chat.SendFriendRequestRequest{
 				RequestedUserId: selectedUser.Id,
 			})
 
+			err := sendFriendRequestResult.Err()
+
 			if err != nil {
-				if err.Error() == "friend request already exists or users are already a friend" {
-					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("Friend Request Already Sent to %s", selectedUser.Username))
+				if len(sendFriendRequestResult.ErrorDetails) > 0 {
+					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, sendFriendRequestResult.ErrorDetails[0])
 					return
-				} else if err.Error() == "user not found" {
-					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, fmt.Sprintf("User %s Not Found", selectedUser.Username))
+				}
+
+				if sendFriendRequestResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+					nav.Alert(FIND_A_FRIEND_PAGE_ALERT_ERR, FORBIDDEN_OPERATION_ERROR_MESSAGE)
 					return
 				}
 
@@ -120,7 +124,7 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 
 // onPageLoad is called when the find a friend page is navigated to
 func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-	authInfo, ok := appContext.GetAuthInfo()
+	accessToken, ok := appContext.GetAccessToken()
 
 	if !ok {
 		log.Printf("Valid user authentication information not found. Redirecting to login page.")
@@ -141,12 +145,29 @@ func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *stat
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
-	usrs, err := page.brochatClient.GetUsers(&authInfo, true, true, 1, 10, "")
+	getUsersResult := page.brochatClient.GetUsers(accessToken, chat.GetUsersOption_ExcludeSelf(),
+		chat.GetUsersOption_ExcludeFriends(),
+		chat.GetUsersOption_Page(1),
+		chat.GetUsersOption_PageSize(10))
+
+	err := getUsersResult.Err()
 
 	if err != nil {
+		if len(getUsersResult.ErrorDetails) > 0 {
+			nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, getUsersResult.ErrorDetails[0])
+			return
+		}
+
+		if getUsersResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+			nav.Alert(FIND_A_FRIEND_PAGE_ALERT_INFO, FORBIDDEN_OPERATION_ERROR_MESSAGE)
+			return
+		}
+
 		nav.AlertFatal(app, FIND_A_FRIEND_PAGE_ALERT_ERR, err.Error())
 		return
 	}
+
+	usrs := getUsersResult.Content
 
 	for i, usr := range usrs {
 		row := i + 1

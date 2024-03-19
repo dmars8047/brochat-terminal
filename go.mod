@@ -10,7 +10,7 @@ retract (
 )
 
 require (
-	github.com/dmars8047/brolib v0.0.15
+	github.com/dmars8047/brolib v0.0.18
 	github.com/dmars8047/idamlib v0.0.3
 	github.com/dmars8047/strval v1.0.1
 	github.com/gdamore/tcell/v2 v2.7.4

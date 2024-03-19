@@ -21,7 +21,7 @@ const (
 )
 
 type FeedClient struct {
-	brochatUserClient         *chat.BroChatUserClient
+	BroChatClient             *chat.BroChatClient
 	dialer                    *websocket.Dialer
 	url                       url.URL
 	conn                      *websocket.Conn
@@ -33,9 +33,9 @@ type FeedClient struct {
 }
 
 // NewFeedClient creates a new instance of the feed client.
-func NewFeedClient(dialer *websocket.Dialer, baseUrl string, brochatUserClient *chat.BroChatUserClient) *FeedClient {
+func NewFeedClient(dialer *websocket.Dialer, baseUrl string, BroChatClient *chat.BroChatClient) *FeedClient {
 	return &FeedClient{
-		brochatUserClient:         brochatUserClient,
+		BroChatClient:             BroChatClient,
 		dialer:                    dialer,
 		url:                       url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
 		chatMessageChannels:       make(map[string]chan chat.ChatMessage, 0),
@@ -133,14 +133,14 @@ func (c *FeedClient) UnsubscribeFromChannelUpdates(id string) {
 
 func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 
-	authInfo, ok := appContext.GetAuthInfo()
+	accessToken, ok := appContext.GetAccessToken()
 
 	if !ok {
 		return errors.New("no valid authentication information available for feed connection")
 	}
 
 	headers := http.Header{}
-	headers.Set("Authorization", "Bearer "+authInfo.AccessToken)
+	headers.Set("Authorization", "Bearer "+accessToken)
 
 	conn, _, err := c.dialer.Dial(c.url.String(), headers)
 
@@ -220,7 +220,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 				case chat.FEED_MESSAGE_TYPE_USER_PROFILE_UPDATED:
 					brochatUser := appContext.GetBrochatUser()
 
-					authInfo, ok := appContext.GetAuthInfo()
+					accessToken, ok := appContext.GetAccessToken()
 
 					if !ok {
 						log.Println("No valid authentication information available for user profile updated event processing")
@@ -228,7 +228,9 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 						return
 					}
 
-					usrProfile, err := c.brochatUserClient.GetUser(&authInfo, brochatUser.Id)
+					result := c.BroChatClient.GetUser(accessToken, brochatUser.Id)
+
+					err = result.Err()
 
 					if err != nil {
 						log.Printf("An error occurred during the processing of a user profile updated event. "+
@@ -237,7 +239,9 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 						continue
 					}
 
-					appContext.SetBrochatUser(*usrProfile)
+					usrProfile := result.Content
+
+					appContext.SetBrochatUser(usrProfile)
 
 					var userProfileUpdatedEvent chat.UserProfileUpdatedEvent
 
