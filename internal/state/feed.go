@@ -21,7 +21,8 @@ const (
 )
 
 type FeedClient struct {
-	BroChatClient             *chat.BroChatClient
+	appContext                *ApplicationContext
+	broChatClient             *chat.BroChatClient
 	dialer                    *websocket.Dialer
 	url                       url.URL
 	conn                      *websocket.Conn
@@ -33,15 +34,16 @@ type FeedClient struct {
 }
 
 // NewFeedClient creates a new instance of the feed client.
-func NewFeedClient(dialer *websocket.Dialer, baseUrl string, BroChatClient *chat.BroChatClient) *FeedClient {
+func NewFeedClient(dialer *websocket.Dialer, baseUrl string, broChatClient *chat.BroChatClient, appContext *ApplicationContext) *FeedClient {
 	return &FeedClient{
-		BroChatClient:             BroChatClient,
+		broChatClient:             broChatClient,
 		dialer:                    dialer,
 		url:                       url.URL{Scheme: feedScheme, Host: baseUrl, Path: feedSuffix},
 		chatMessageChannels:       make(map[string]chan chat.ChatMessage, 0),
 		userProfileUpdateChannels: make(map[string]chan chat.UserProfileUpdateCode, 0),
 		channelUpdateChannels:     make(map[string]chan string, 0),
 		mu:                        sync.RWMutex{},
+		appContext:                appContext,
 	}
 }
 
@@ -131,9 +133,9 @@ func (c *FeedClient) UnsubscribeFromChannelUpdates(id string) {
 	delete(c.channelUpdateChannels, id)
 }
 
-func (c *FeedClient) Connect(appContext *ApplicationContext) error {
+func (c *FeedClient) Connect() error {
 
-	accessToken, ok := appContext.GetAccessToken()
+	accessToken, ok := c.appContext.GetAccessToken()
 
 	if !ok {
 		return errors.New("no valid authentication information available for feed connection")
@@ -218,17 +220,17 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 
 					c.mu.RUnlock()
 				case chat.FEED_MESSAGE_TYPE_USER_PROFILE_UPDATED:
-					brochatUser := appContext.GetBrochatUser()
+					brochatUser := c.appContext.GetBrochatUser()
 
-					accessToken, ok := appContext.GetAccessToken()
+					accessToken, ok := c.appContext.GetAccessToken()
 
 					if !ok {
 						log.Println("No valid authentication information available for user profile updated event processing")
-						appContext.CancelUserSession()
+						c.appContext.CancelUserSession()
 						return
 					}
 
-					result := c.BroChatClient.GetUser(accessToken, brochatUser.Id)
+					result := c.broChatClient.GetUser(accessToken, brochatUser.Id)
 
 					err = result.Err()
 
@@ -241,7 +243,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 
 					usrProfile := result.Content
 
-					appContext.SetBrochatUser(usrProfile)
+					c.appContext.SetBrochatUser(usrProfile)
 
 					var userProfileUpdatedEvent chat.UserProfileUpdatedEvent
 
@@ -267,7 +269,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 	go func() {
 		for {
 			select {
-			case <-appContext.userSession.context.Done():
+			case <-c.appContext.userSession.context.Done():
 				c.mu.Lock()
 				defer c.mu.Unlock()
 
@@ -301,7 +303,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 				}
 
 				// Wait for a close message from the server or timeout after 30 seconds
-				ctx, cancel := context.WithTimeout(appContext.Context, 30*time.Second)
+				ctx, cancel := context.WithTimeout(c.appContext.Context, 30*time.Second)
 				defer cancel()
 
 				done := make(chan struct{})
@@ -329,7 +331,9 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 
 				return
 			case <-time.After(30 * time.Second):
-				c.conn.WriteMessage(websocket.PingMessage, nil)
+				if c.conn != nil && !c.Closed && c.appContext.userSession != nil {
+					c.conn.WriteMessage(websocket.PingMessage, nil)
+				}
 			}
 		}
 	}()
@@ -338,7 +342,7 @@ func (c *FeedClient) Connect(appContext *ApplicationContext) error {
 }
 
 func (c *FeedClient) SendFeedMessage(messageType chat.FeedMessageType, content interface{}) error {
-	if c.Closed || c.conn == nil {
+	if c.Closed || c.conn == nil || c.appContext.userSession == nil {
 		return errors.New("feed connection failure")
 	}
 

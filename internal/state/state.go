@@ -2,6 +2,7 @@ package state
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"time"
 
@@ -13,11 +14,12 @@ import (
 // It also contains references to the logged in user and their authentication information.
 type ApplicationContext struct {
 	// The context for the application
-	Context     context.Context
-	brochatUser *chat.User
-	chatSession *ChatSession
-	userSession *UserSession
-	mut         sync.RWMutex
+	Context           context.Context
+	brochatUser       *chat.User
+	userSession       *UserSession
+	mut               sync.RWMutex
+	monitoringContext context.Context
+	cancelMonitoring  context.CancelFunc
 }
 
 func NewApplicationContext(context context.Context) *ApplicationContext {
@@ -49,6 +51,9 @@ func (appContext *ApplicationContext) GetUserAuth() UserAuth {
 
 // GetAccessToken returns the auth info for the user session. This is used to authenticate calls made using the brochat client.
 func (appContext *ApplicationContext) GetAccessToken() (string, bool) {
+	appContext.mut.RLock()
+	defer appContext.mut.RUnlock()
+
 	if appContext.userSession == nil {
 		return "", false
 	}
@@ -65,58 +70,66 @@ func (appContext *ApplicationContext) GetAccessToken() (string, bool) {
 // This will cancel the previous user session if it exists
 // It will also create a new context for the user session
 // The user session will be cancelled after the token expires
-func (appContext *ApplicationContext) SetUserSession(auth UserAuth) {
-	context, cancel := context.WithCancel(appContext.Context)
+func (appContext *ApplicationContext) SetUserSession(auth UserAuth, redirect func()) {
+	appContext.mut.Lock()
+	defer appContext.mut.Unlock()
+
+	if appContext.userSession != nil {
+		appContext.cancelMonitoring()
+	}
+
+	userSessionContext, cancelUserSession := context.WithCancel(appContext.Context)
 
 	appContext.userSession = &UserSession{
-		Auth:       auth,
-		context:    context,
-		cancelFunc: cancel,
+		Auth:    auth,
+		context: userSessionContext,
+		cancel:  cancelUserSession,
 	}
 
-	go func(ctx *ApplicationContext) {
+	appContext.monitoringContext, appContext.cancelMonitoring = context.WithCancel(userSessionContext)
+
+	go func() {
 		select {
-		case <-ctx.userSession.context.Done():
+		case <-appContext.monitoringContext.Done():
 			return
-		case <-time.After(time.Until(ctx.userSession.Auth.TokenExpiration)):
-			ctx.CancelUserSession()
+		// case <-time.After(time.Until(appContext.userSession.Auth.TokenExpiration)):
+		case <-time.After(time.Second * 30):
+			redirect()
+			appContext.CancelUserSession()
 			return
 		}
-	}(appContext)
+	}()
 }
 
-func (appContext *ApplicationContext) SetChatSession(channel *chat.Channel) {
-	context, cancel := context.WithCancel(appContext.userSession.context)
+// GenerateUserSessionBoundContextWithCancel generates a new context with cancel function that is bound to the lifetime of the user session.
+// If the user session is not set, this will panic.
+func (appContext *ApplicationContext) GenerateUserSessionBoundContextWithCancel() (context.Context, context.CancelFunc) {
+	appContext.mut.RLock()
+	defer appContext.mut.RUnlock()
 
-	appContext.chatSession = &ChatSession{
-		channel:    channel,
-		context:    context,
-		cancelFunc: cancel,
+	if appContext.userSession == nil {
+		panic(errors.New("user session is not set"))
 	}
+
+	ctx, cancel := context.WithCancel(appContext.userSession.context)
+
+	return ctx, cancel
 }
 
 // CancelUserSession cancels the user session
 // This will cancel the context and set the user session to nil
 // Calling this method before the user session is set will do nothing
 func (appContext *ApplicationContext) CancelUserSession() {
+	appContext.mut.Lock()
+	defer appContext.mut.Unlock()
+
 	if appContext.userSession == nil {
 		return
 	}
 
-	appContext.userSession.cancelFunc()
+	cancel := appContext.userSession.cancel
 	appContext.userSession = nil
-}
-
-// CancelChatSession cancels the chat session
-// This will cancel the context and set the chat session to nil
-// Calling this method before the chat session is set will do nothing
-func (appContext *ApplicationContext) CancelChatSession() {
-	if appContext.chatSession == nil {
-		return
-	}
-
-	appContext.chatSession.cancelFunc()
-	appContext.chatSession = nil
+	cancel()
 }
 
 type UserAuth struct {
@@ -125,13 +138,7 @@ type UserAuth struct {
 }
 
 type UserSession struct {
-	Auth       UserAuth
-	context    context.Context
-	cancelFunc context.CancelFunc
-}
-
-type ChatSession struct {
-	channel    *chat.Channel
-	context    context.Context
-	cancelFunc context.CancelFunc
+	Auth    UserAuth
+	context context.Context
+	cancel  context.CancelFunc
 }

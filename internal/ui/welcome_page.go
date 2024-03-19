@@ -17,6 +17,10 @@ func NewWelcomePage() *WelcomePage {
 	return &WelcomePage{}
 }
 
+type WelcomePageParams struct {
+	isRedirect bool
+}
+
 // Setup configures the welcome page and registers it with the page navigator
 func (page *WelcomePage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
 	grid := tview.NewGrid()

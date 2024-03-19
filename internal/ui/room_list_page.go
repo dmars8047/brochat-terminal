@@ -93,11 +93,12 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
-	pageContext, cancel := context.WithCancel(appContext.Context)
+	var pageContext context.Context
+	var cancel context.CancelFunc
 
 	nav.Register(ROOM_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
-			pageContext, cancel = context.WithCancel(appContext.Context)
+			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
 			page.onPageLoad(app, appContext, pageContext)
 		},
 		func() {

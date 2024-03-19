@@ -21,6 +21,7 @@ type ChatPage struct {
 	feedClient    *state.FeedClient
 	textView      *tview.TextView
 	textArea      *tview.TextArea
+	mu            sync.Mutex
 }
 
 // NewChatPage creates a new chat page
@@ -53,7 +54,7 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.ColorWhite)
 
-	tvInstructions.SetText("(enter) Send - (esc) Back")
+	tvInstructions.SetText("(enter) Send - (pageUp/pageDown) Scroll - (esc) Back")
 
 	grid := tview.NewGrid()
 
@@ -64,16 +65,17 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 	grid.AddItem(page.textArea, 1, 0, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 2, 0, 1, 1, 0, 0, false)
 
-	pageContext, cancel := context.WithCancel(appContext.Context)
+	var pageContext context.Context
+	var cancel context.CancelFunc
 
 	nav.Register(CHAT_PAGE, grid, true, false,
 		func(param interface{}) {
-			pageContext, cancel = context.WithCancel(appContext.Context)
+			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
 			page.onPageLoad(param, app, appContext, nav, pageContext)
 		},
 		func() {
 			cancel()
-			page.onPageClose(appContext)
+			page.onPageClose()
 		})
 }
 
@@ -131,8 +133,12 @@ func (page *ChatPage) onPageLoad(param interface{},
 	// Get the color manifest
 	colorManifest := getColorManifest(channel.Users)
 
+	const pageSize = 100
+	entireConversationLoaded := false
+	oldestMessageId := ""
+
 	// Get the channel messages
-	getChannelMessagesResult := page.brochatClient.GetChannelMessages(accessToken, chatParam.channel_id)
+	getChannelMessagesResult := page.brochatClient.GetChannelMessages(accessToken, chatParam.channel_id, chat.GetChannelMessages_Page(1), chat.GetChannelMessages_PageSize(pageSize))
 
 	err = getChannelMessagesResult.Err()
 
@@ -152,6 +158,12 @@ func (page *ChatPage) onPageLoad(param interface{},
 	}
 
 	messages := getChannelMessagesResult.Content
+
+	if len(messages) < pageSize {
+		entireConversationLoaded = true
+	} else {
+		oldestMessageId = messages[len(messages)-1].Id
+	}
 
 	// Write the messages to the text view
 	w := page.textView.BatchWriter()
@@ -199,15 +211,116 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 	brochatUser := appContext.GetBrochatUser()
 
-	// Set the chat context
-	appContext.SetChatSession(&channel)
-
+	// Tell the server that this is the active channel
 	page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
 		ChannelId: channel.Id,
 	})
 
 	page.textArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyEnter {
+		if event.Key() == tcell.KeyPgUp {
+			// scroll up 10 lines
+			r, _ := page.textView.GetScrollOffset()
+
+			if r == 0 {
+				if !entireConversationLoaded {
+					getChannelMessagesResult := page.brochatClient.GetChannelMessages(accessToken, chatParam.channel_id,
+						chat.GetChannelMessages_Page(1),
+						chat.GetChannelMessages_PageSize(pageSize),
+						chat.GetChannelMessages_BeforeMessage(oldestMessageId))
+
+					err = getChannelMessagesResult.Err()
+
+					if err != nil {
+						if len(getChannelMessagesResult.ErrorDetails) > 0 {
+							nav.Alert("home:chat:alert:err", getChannelMessagesResult.ErrorDetails[0])
+							return nil
+						}
+
+						if getChannelMessagesResult.ResponseCode == chat.BROCHAT_RESPONSE_CODE_FORBIDDEN_ERROR {
+							nav.Alert("home:chat:alert:err", FORBIDDEN_OPERATION_ERROR_MESSAGE)
+							return nil
+						}
+
+						nav.AlertFatal(app, "home:chat:alert:err", err.Error())
+						return nil
+					}
+
+					messages := getChannelMessagesResult.Content
+
+					page.mu.Lock()
+					defer page.mu.Unlock()
+
+					if len(messages) < pageSize {
+						entireConversationLoaded = true
+					} else {
+						oldestMessageId = messages[len(messages)-1].Id
+					}
+
+					oldText := []byte(page.textView.GetText(false))
+
+					// Prepend the messages to the text view
+					writer := page.textView.BatchWriter()
+					defer writer.Close()
+
+					writer.Clear()
+
+					for i := len(messages) - 1; i >= 0; i-- {
+						// Write the messages to the text view
+						var senderUsername string
+						var msg = messages[i]
+
+						color := colorManifest[msg.SenderUserId]
+
+						for _, u := range channel.Users {
+							if u.Id == msg.SenderUserId {
+								senderUsername = u.Username
+								break
+							}
+						}
+
+						// If for some reason the user info is not found just make the username "Unknown User"
+						if senderUsername == "" {
+							senderUsername = "Unknown User"
+						}
+
+						// If the color is not found then just make it red
+						if color == "" {
+							color = "#FF0000"
+						}
+
+						var dateString string
+
+						// If the message is from a date in the past (not today) then format the date string differently
+						if msg.RecievedAtUtc.Local().Day() == time.Now().Day() {
+							dateString = msg.RecievedAtUtc.Local().Format(time.Kitchen)
+						} else {
+							dateString = msg.RecievedAtUtc.Local().Format("Jan 2, 2006 3:04 PM")
+						}
+
+						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+						fmt.Fprintln(writer, msgString)
+					}
+
+					writer.Write(oldText)
+
+					// Scroll to the top if there are less than 10 messages otherwise scroll up the normal 10 lines
+					if len(messages) > 10 {
+						page.textView.ScrollTo(len(messages)-10, 0)
+					} else {
+						page.textView.ScrollToBeginning()
+					}
+				}
+
+				return nil
+			}
+
+			page.textView.ScrollTo(r-10, 0)
+			return nil
+		} else if event.Key() == tcell.KeyPgDn {
+			r, _ := page.textView.GetScrollOffset()
+			page.textView.ScrollTo(r+10, 0)
+			return nil
+		} else if event.Key() == tcell.KeyEnter {
 			text := page.textArea.GetText()
 
 			if len(text) > 0 {
@@ -228,8 +341,6 @@ func (page *ChatPage) onPageLoad(param interface{},
 		return event
 	})
 
-	mux := sync.RWMutex{}
-
 	// Start the listener for channel updates
 	go func() {
 		subscriptionId, channelUpdateChannel := page.feedClient.SubscribeToChannelUpdates()
@@ -242,6 +353,9 @@ func (page *ChatPage) onPageLoad(param interface{},
 				return
 			case eventChannelId := <-channelUpdateChannel:
 				if eventChannelId == channel.Id {
+					page.mu.Lock()
+					defer page.mu.Unlock()
+
 					accessToken, ok := appContext.GetAccessToken()
 
 					if !ok {
@@ -270,10 +384,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 						}
 					}
 
-					mux.Lock()
 					colorManifest = getColorManifest(usersForManifest)
-					mux.Unlock()
-
 					channel = newChannel
 				}
 			}
@@ -292,11 +403,11 @@ func (page *ChatPage) onPageLoad(param interface{},
 			case msg := <-chatMsgChannel:
 				if msg.ChannelId == ch.Id {
 					a.QueueUpdateDraw(func() {
-						var senderUsername string
+						page.mu.Lock()
+						defer page.mu.Unlock()
 
-						mux.RLock()
+						var senderUsername string
 						color := colorManifest[msg.SenderUserId]
-						mux.RUnlock()
 
 						for _, u := range ch.Users {
 							if u.Id == msg.SenderUserId {
@@ -328,17 +439,13 @@ func (page *ChatPage) onPageLoad(param interface{},
 }
 
 // onPageClose is called when the chat page is navigated away from
-func (page *ChatPage) onPageClose(
-	appContext *state.ApplicationContext) {
-
+func (page *ChatPage) onPageClose() {
 	page.textView.Clear()
 	page.textArea.SetText("", false)
 
 	page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
 		ChannelId: "NONE",
 	})
-
-	appContext.CancelChatSession()
 }
 
 // ChatPageParameters is load time parameters for the chat page

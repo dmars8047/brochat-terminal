@@ -95,11 +95,12 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(page.tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
-	pageContext, cancel := context.WithCancel(appContext.Context)
+	var pageContext context.Context
+	var cancel context.CancelFunc
 
 	nav.Register(FRIENDS_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
-			pageContext, cancel = context.WithCancel(appContext.Context)
+			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
 			page.onPageLoad(app, appContext, pageContext)
 		},
 		func() {

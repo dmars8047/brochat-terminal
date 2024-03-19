@@ -142,7 +142,9 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 			TokenExpiration: time.Now().Add(time.Duration(loginResponse.ExpiresIn * int64(time.Second))),
 		}
 
-		appContext.SetUserSession(userAuth)
+		appContext.SetUserSession(userAuth, func() {
+			nav.NavigateTo(WELCOME_PAGE, WelcomePageParams{isRedirect: true})
+		})
 
 		passwordInput.SetText("")
 		emailInput.SetText("")
@@ -170,7 +172,7 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 
 		appContext.SetBrochatUser(brochatUser)
 
-		err = page.feedClient.Connect(appContext)
+		err = page.feedClient.Connect()
 
 		if err != nil {
 			nav.Alert("auth:login:alert:err", err.Error())

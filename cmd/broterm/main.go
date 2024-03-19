@@ -40,11 +40,11 @@ func main() {
 
 	brochatClient := chat.NewBroChatClient(httpClient, "http://localhost:8083")
 
-	dialer := &websocket.Dialer{
-		HandshakeTimeout: 10 * time.Second,
-	}
+	// Configure the application
+	app := tview.NewApplication()
 
-	feedClient := state.NewFeedClient(dialer, "localhost:8083", brochatClient)
+	// Setup the page navigator
+	nav := ui.NewNavigator()
 
 	// Setup the application context
 	context, cancel := context.WithCancel(context.Background())
@@ -52,11 +52,11 @@ func main() {
 
 	appContext := state.NewApplicationContext(context)
 
-	// Configure the application
-	app := tview.NewApplication()
+	dialer := &websocket.Dialer{
+		HandshakeTimeout: 10 * time.Second,
+	}
 
-	// Setup the page navigator
-	nav := ui.NewNavigator()
+	feedClient := state.NewFeedClient(dialer, "localhost:8083", brochatClient, appContext)
 
 	// Setup the welcome page
 	welcomePage := ui.NewWelcomePage()
