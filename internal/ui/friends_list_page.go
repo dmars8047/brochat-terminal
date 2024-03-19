@@ -55,6 +55,7 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 
 		nav.NavigateTo(CHAT_PAGE, ChatPageParameters{
 			channel_id: rel.DirectMessageChannelId,
+			returnPage: FRIENDS_LIST_PAGE,
 		})
 	})
 

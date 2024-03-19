@@ -85,6 +85,8 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 				nav.Pages.HidePage(ROOM_FINDER_PAGE_ALERT_INFO).RemovePage(ROOM_FINDER_PAGE_ALERT_INFO)
 				nav.NavigateTo(CHAT_PAGE, ChatPageParameters{
 					channel_id: room.ChannelId,
+					title:      room.Name,
+					returnPage: ROOM_LIST_PAGE,
 				})
 			})
 		})

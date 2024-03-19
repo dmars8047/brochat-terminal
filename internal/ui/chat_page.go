@@ -222,7 +222,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 			return nil
 		} else if event.Key() == tcell.KeyEscape {
-			nav.NavigateTo(HOME_PAGE, nil)
+			nav.NavigateTo(chatParam.returnPage, nil)
 		}
 
 		return event
@@ -345,6 +345,7 @@ func (page *ChatPage) onPageClose(
 type ChatPageParameters struct {
 	channel_id string
 	title      string
+	returnPage PageSlug
 }
 
 // getColorManifest takes in a slice of users and assigns each users and a color.
@@ -354,15 +355,12 @@ func getColorManifest(users []chat.UserInfo) map[string]string {
 	var possibleColors = []string{
 		"#33DA7A", // Light Green
 		"#C061CB", // Lilac
-		"#00FF00", // Green
-		"#0000FF", // Blue
-		"#FFFF00", // Yellow
-		"#FF00FF", // Magenta
+		"#FF6B30", // Orange
+		"#008666", // Dark Teal
 		"#00FFFF", // Cyan
-		"#FFA500", // Orange
-		"#800080", // Purple
-		"#008000", // Dark Green
-		"#008080", // Teal
+		"#FF5555", // Light Red
+		"#FAEC34", // Yellow
+		"#FFAAFF", // Light Pink
 	}
 
 	colorManifest := make(map[string]string)

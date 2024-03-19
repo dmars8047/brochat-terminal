@@ -53,6 +53,7 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 		nav.NavigateTo(CHAT_PAGE, ChatPageParameters{
 			channel_id: room.ChannelId,
 			title:      room.Name,
+			returnPage: ROOM_LIST_PAGE,
 		})
 	})
 
