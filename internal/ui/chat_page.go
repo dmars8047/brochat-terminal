@@ -356,7 +356,7 @@ func getColorManifest(users []chat.UserInfo) map[string]string {
 		"#33DA7A", // Light Green
 		"#C061CB", // Lilac
 		"#FF6B30", // Orange
-		"#008666", // Dark Teal
+		"#5928ED", // Purple
 		"#00FFFF", // Cyan
 		"#FF5555", // Light Red
 		"#FAEC34", // Yellow
