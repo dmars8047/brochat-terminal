@@ -54,7 +54,7 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	tvInstructions.SetTextColor(tcell.ColorWhite)
 
-	tvInstructions.SetText("(enter) Send - (pageUp/pageDown) Scroll - (esc) Back")
+	tvInstructions.SetText("(enter) Send - (pgup/pgdn) Scroll - (esc) Back")
 
 	grid := tview.NewGrid()
 

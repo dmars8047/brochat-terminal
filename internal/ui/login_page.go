@@ -143,7 +143,7 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 		}
 
 		appContext.SetUserSession(userAuth, func() {
-			nav.NavigateTo(WELCOME_PAGE, WelcomePageParams{isRedirect: true})
+			nav.NavigateTo(WELCOME_PAGE, WelcomePageParams{isRedirect: true, redirectMessage: "Your session has expired. Please login again."})
 		})
 
 		passwordInput.SetText("")

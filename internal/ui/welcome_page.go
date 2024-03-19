@@ -9,8 +9,7 @@ import (
 const WELCOME_PAGE PageSlug = "welcome"
 
 // WelcomePage is the welcome page
-type WelcomePage struct {
-}
+type WelcomePage struct{}
 
 // NewWelcomePage creates a new instance of the welcome page
 func NewWelcomePage() *WelcomePage {
@@ -18,7 +17,8 @@ func NewWelcomePage() *WelcomePage {
 }
 
 type WelcomePageParams struct {
-	isRedirect bool
+	isRedirect      bool
+	redirectMessage string
 }
 
 // Setup configures the welcome page and registers it with the page navigator
@@ -113,5 +113,22 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true).
 		AddItem(tvVersionNumber, 4, 1, 1, 2, 0, 0, false)
 
-	nav.Register(WELCOME_PAGE, grid, true, true, nil, nil)
+	nav.Register(WELCOME_PAGE, grid, true, true, func(param interface{}) {
+		if param != nil {
+			params := param.(*WelcomePageParams)
+			if params.isRedirect {
+				modal := tview.NewModal()
+				modal.SetText(params.redirectMessage).
+					AddButtons([]string{"Close"}).
+					SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+						grid.RemoveItem(modal)
+						app.SetFocus(loginButton)
+					})
+
+				app.SetFocus(modal)
+
+				grid.AddItem(modal, 3, 1, 1, 2, 0, 0, true)
+			}
+		}
+	}, nil)
 }
