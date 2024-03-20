@@ -22,6 +22,10 @@ var (
 	TEXT_AREA_STYLE          = tcell.StyleDefault.Reverse(true).Background(tcell.NewHexColor(0x222222)).Foreground(tcell.ColorWhite)
 )
 
+var (
+	BroChatStyle = tcell.StyleDefault.Background(DEFAULT_BACKGROUND_COLOR).Foreground(tcell.ColorWhite)
+)
+
 const (
 	FORBIDDEN_OPERATION_ERROR_MESSAGE = "Warning! A forbidden operation was attempted."
 )

@@ -66,11 +66,11 @@ func (appContext *ApplicationContext) GetAccessToken() (string, bool) {
 	return appContext.userSession.Auth.AccessToken, true
 }
 
-// SetUserSession sets the user session
-// This will cancel the previous user session if it exists
-// It will also create a new context for the user session
-// The user session will be cancelled after the token expires
-// The redirect function will be called when the token expires
+// SetUserSession sets the user session.
+// This will cancel the previous user session if it exists.
+// It will also create a new context for the user session.
+// The user session will be cancelled after the token expires.
+// The redirect function will be called when the token expires in a separate goroutine.
 func (appContext *ApplicationContext) SetUserSession(auth UserAuth, redirect func()) {
 	appContext.mut.Lock()
 	defer appContext.mut.Unlock()
@@ -93,8 +93,7 @@ func (appContext *ApplicationContext) SetUserSession(auth UserAuth, redirect fun
 		select {
 		case <-appContext.monitoringContext.Done():
 			return
-		// case <-time.After(time.Until(appContext.userSession.Auth.TokenExpiration)):
-		case <-time.After(time.Second * 30):
+		case <-time.After(time.Until(appContext.userSession.Auth.TokenExpiration)):
 			redirect()
 			appContext.CancelUserSession()
 			return

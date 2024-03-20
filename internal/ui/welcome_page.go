@@ -65,28 +65,58 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		nav.NavigateTo(REGISTER_PAGE, nil)
 	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
 
+	configButton := tview.NewButton("Settings").SetSelectedFunc(func() {
+		nav.NavigateTo(APP_SETTINGS_PAGE, nil)
+	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
+
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
 		app.Stop()
 	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
 
 	buttonGrid := tview.NewGrid()
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab {
+		key := event.Key()
+
+		goRight := func() {
 			if loginButton.HasFocus() {
 				app.SetFocus(registrationButton)
 			} else if registrationButton.HasFocus() {
+				app.SetFocus(configButton)
+			} else if configButton.HasFocus() {
 				app.SetFocus(exitButton)
 			} else if exitButton.HasFocus() {
 				app.SetFocus(loginButton)
 			}
-		} else if event.Key() == tcell.KeyBacktab {
+		}
+
+		goLeft := func() {
 			if loginButton.HasFocus() {
 				app.SetFocus(exitButton)
 			} else if registrationButton.HasFocus() {
 				app.SetFocus(loginButton)
-			} else if exitButton.HasFocus() {
+			} else if configButton.HasFocus() {
 				app.SetFocus(registrationButton)
+			} else if exitButton.HasFocus() {
+				app.SetFocus(configButton)
 			}
+		}
+
+		// vim movement keys
+		if key == tcell.KeyRune {
+			switch event.Rune() {
+			case 'l':
+				goRight()
+			case 'h':
+				goLeft()
+			}
+		}
+
+		if key == tcell.KeyTab || key == tcell.KeyRight {
+			goRight()
+		} else if key == tcell.KeyBacktab || key == tcell.KeyLeft {
+			goLeft()
+		} else if key == tcell.KeyEscape {
+			app.Stop()
 		}
 		return event
 	})
@@ -98,15 +128,16 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvVersionNumber.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
-	tvVersionNumber.SetText("Version - v0.0.12")
+	tvVersionNumber.SetText("Version - v0.1.0")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
-	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 4, 0, 4, 0)
+	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 2, 0, 2, 0, 2, 0)
 
 	buttonGrid.AddItem(loginButton, 0, 0, 1, 1, 0, 0, true).
 		AddItem(registrationButton, 0, 2, 1, 1, 0, 0, false).
-		AddItem(exitButton, 0, 4, 1, 1, 0, 0, false).
-		AddItem(tvInstructions, 2, 0, 1, 5, 0, 0, false)
+		AddItem(configButton, 0, 4, 1, 1, 0, 0, false).
+		AddItem(exitButton, 0, 6, 1, 1, 0, 0, false).
+		AddItem(tvInstructions, 2, 0, 1, 7, 0, 0, false)
 
 	grid.AddItem(logoBro, 1, 1, 1, 1, 0, 0, false).
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
@@ -115,19 +146,18 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	nav.Register(WELCOME_PAGE, grid, true, true, func(param interface{}) {
 		if param != nil {
-			params := param.(*WelcomePageParams)
-			if params.isRedirect {
+			welcomPageParameters := param.(WelcomePageParams)
+			if welcomPageParameters.isRedirect {
 				modal := tview.NewModal()
-				modal.SetText(params.redirectMessage).
+				modal.SetText(welcomPageParameters.redirectMessage).
 					AddButtons([]string{"Close"}).
 					SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 						grid.RemoveItem(modal)
 						app.SetFocus(loginButton)
 					})
 
-				app.SetFocus(modal)
-
 				grid.AddItem(modal, 3, 1, 1, 2, 0, 0, true)
+				app.SetFocus(modal)
 			}
 		}
 	}, nil)

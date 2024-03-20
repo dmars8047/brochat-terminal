@@ -129,7 +129,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Key() == tcell.KeyTab {
+
+		goRight := func() {
 			if brosButton.HasFocus() {
 				app.SetFocus(chatButton)
 			} else if chatButton.HasFocus() {
@@ -139,7 +140,9 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 			} else if logoutButton.HasFocus() {
 				app.SetFocus(brosButton)
 			}
-		} else if event.Key() == tcell.KeyBacktab {
+		}
+
+		goLeft := func() {
 			if logoutButton.HasFocus() {
 				app.SetFocus(settingsButton)
 			} else if settingsButton.HasFocus() {
@@ -150,6 +153,21 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 				app.SetFocus(logoutButton)
 			}
 		}
+
+		// vim movement keys
+		if event.Key() == tcell.KeyRune {
+			switch event.Rune() {
+			case 'l':
+				goRight()
+			case 'h':
+				goLeft()
+			}
+		} else if event.Key() == tcell.KeyTab || event.Key() == tcell.KeyRight {
+			goRight()
+		} else if event.Key() == tcell.KeyBacktab || event.Key() == tcell.KeyLeft {
+			goLeft()
+		}
+
 		return event
 	})
 

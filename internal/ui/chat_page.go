@@ -46,9 +46,8 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 		app.Draw()
 	})
 
-	page.textArea.SetTextStyle(TEXT_AREA_STYLE)
+	page.textArea.SetTextStyle(BroChatStyle)
 	page.textArea.SetBorder(true)
-	page.textArea.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
 	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)

@@ -62,6 +62,10 @@ func main() {
 	welcomePage := ui.NewWelcomePage()
 	welcomePage.Setup(app, appContext, nav)
 
+	// Setup the app settings page
+	appSettingsPage := ui.NewAppSettingsPage()
+	appSettingsPage.Setup(app, appContext, nav)
+
 	// Setup the registration page
 	registrationPage := ui.NewRegistrationPage(userAuthClient)
 	registrationPage.Setup(app, appContext, nav)

@@ -13,10 +13,6 @@ import (
 
 const LOGIN_PAGE PageSlug = "login"
 
-const (
-	LOGIN_PAGE_TITLE = " BroChat - Login "
-)
-
 // LoginPage is the login page
 type LoginPage struct {
 	userAuthClient *idam.UserAuthClient
@@ -36,6 +32,8 @@ func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroCh
 }
 
 func (page *LoginPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+	const title = " BroChat - Login "
+
 	grid := tview.NewGrid()
 	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 	grid.SetRows(4, 0, 1, 3, 4)
@@ -44,7 +42,7 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 	page.loginForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
 	page.loginForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
 	page.loginForm.SetLabelColor(BROCHAT_YELLOW_COLOR)
-	page.loginForm.SetBorder(true).SetTitle(LOGIN_PAGE_TITLE).SetTitleAlign(tview.AlignCenter)
+	page.loginForm.SetBorder(true).SetTitle(title).SetTitleAlign(tview.AlignCenter)
 	page.loginForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
 	page.loginForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
 	page.loginForm.AddInputField("Email", "", 0, nil, nil)
@@ -143,7 +141,11 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 		}
 
 		appContext.SetUserSession(userAuth, func() {
-			nav.NavigateTo(WELCOME_PAGE, WelcomePageParams{isRedirect: true, redirectMessage: "Your session has expired. Please login again."})
+			app.QueueUpdateDraw(
+				func() {
+					nav.NavigateTo(WELCOME_PAGE, WelcomePageParams{isRedirect: true, redirectMessage: "Your session has expired. Please login again."})
+				},
+			)
 		})
 
 		passwordInput.SetText("")
