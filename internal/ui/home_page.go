@@ -14,25 +14,25 @@ const HOME_PAGE PageSlug = "home"
 
 type HomePage struct {
 	userAuthClient *idam.UserAuthClient
+	currentTheme   string
 }
 
 func NewHomePage(userAuthClient *idam.UserAuthClient) *HomePage {
 	return &HomePage{
 		userAuthClient: userAuthClient,
+		currentTheme:   "NOT_SET",
 	}
 }
 
 func (page *HomePage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	grid.SetRows(4, 8, 8, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
-	logoBro.SetTextAlign(tview.AlignLeft).
-		SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
-	logoBro.SetTextColor(tcell.ColorWhite)
+	logoBro.SetTextAlign(tview.AlignLeft)
 	logoBro.SetText(
 		`BBBBBBB\                      
 BB  __BB\                     
@@ -45,8 +45,6 @@ BBBBBBB  |RR |      \OOOOOO  |
 
 	logoChat := tview.NewTextView()
 	logoChat.SetTextAlign(tview.AlignLeft)
-	logoChat.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
-	logoChat.SetTextColor(BROCHAT_YELLOW_COLOR)
 	logoChat.SetText(
 		` CCCCCC\  HH\                  TT\
 CC  __CC\ HH |                 TT |
@@ -57,33 +55,25 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 \CCCCCC  |HH |  HH |\AAAAAAA | \TTTT  |
  \______/ \__|  \__| \_______|  \____/`)
 
-	brosButton := tview.NewButton("Bros").
-		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
-		SetStyle(DEFAULT_BUTTON_STYLE)
+	brosButton := tview.NewButton("Bros")
 
 	brosButton.SetSelectedFunc(func() {
 		nav.NavigateTo(FRIENDS_LIST_PAGE, nil)
 	})
 
-	chatButton := tview.NewButton("Chat").
-		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
-		SetStyle(DEFAULT_BUTTON_STYLE)
+	chatButton := tview.NewButton("Chat")
 
 	chatButton.SetSelectedFunc(func() {
 		nav.NavigateTo(ROOM_LIST_PAGE, nil)
 	})
 
-	settingsButton := tview.NewButton("Settings").
-		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
-		SetStyle(DEFAULT_BUTTON_STYLE)
+	settingsButton := tview.NewButton("Settings")
 
 	settingsButton.SetSelectedFunc(func() {
 		nav.Alert("home:menu:alert:info", "Settings Not Implemented Yet")
 	})
 
-	logoutButton := tview.NewButton("Logout").
-		SetActivatedStyle(ACTIVATED_BUTTON_STYLE).
-		SetStyle(DEFAULT_BUTTON_STYLE)
+	logoutButton := tview.NewButton("Logout")
 
 	logoutButton.SetSelectedFunc(func() {
 		accessToken, ok := appContext.GetAccessToken()
@@ -109,8 +99,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	buttonGrid := tview.NewGrid()
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
-	tvInstructions.SetTextColor(tcell.ColorWhite)
 
 	logoutButton.SetFocusFunc(func() {
 		tvInstructions.SetText("Sign out of your account.")
@@ -184,8 +172,41 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true)
 
+	// Apply all colors and styles
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if theme.Name != page.currentTheme {
+			grid.SetBackgroundColor(theme.BackgroundColor)
+
+			logoBro.SetBackgroundColor(theme.BackgroundColor)
+			logoBro.SetTextColor(tcell.ColorWhite)
+			logoChat.SetBackgroundColor(theme.BackgroundColor)
+			logoChat.SetBackgroundColor(theme.BackgroundColor)
+			logoChat.SetTextColor(theme.HighlightColor)
+
+			brosButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			brosButton.SetStyle(theme.ButtonStyle)
+
+			chatButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			chatButton.SetStyle(theme.ButtonStyle)
+
+			settingsButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			settingsButton.SetStyle(theme.ButtonStyle)
+
+			logoutButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			logoutButton.SetStyle(theme.ButtonStyle)
+
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(tcell.ColorWhite)
+
+			page.currentTheme = theme.Name
+		}
+	}
+
 	nav.Register(HOME_PAGE, grid, true, false,
 		func(_ interface{}) {
+			applyTheme()
 			page.onPageLoad(appContext, nav)
 		}, func() {
 			page.onPageClose()

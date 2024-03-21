@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
+	"github.com/dmars8047/broterm/internal/theme"
 )
 
 // ApplicationContext is the context for the application
@@ -20,12 +21,26 @@ type ApplicationContext struct {
 	mut               sync.RWMutex
 	monitoringContext context.Context
 	cancelMonitoring  context.CancelFunc
+	theme             *theme.Theme
 }
 
 func NewApplicationContext(context context.Context) *ApplicationContext {
 	return &ApplicationContext{
 		Context: context,
+		theme:   theme.NewTheme("satanic"),
 	}
+}
+
+func (appContext *ApplicationContext) GetTheme() theme.Theme {
+	appContext.mut.RLock()
+	defer appContext.mut.RUnlock()
+	return *appContext.theme
+}
+
+func (appContext *ApplicationContext) SetTheme(themeName string) {
+	appContext.mut.Lock()
+	defer appContext.mut.Unlock()
+	appContext.theme = theme.NewTheme(themeName)
 }
 
 func (appContext *ApplicationContext) GetBrochatUser() chat.User {

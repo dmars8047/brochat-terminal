@@ -37,20 +37,22 @@ func NewChatPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient
 // Setup configures the chat page and registers it with the page navigator
 func (page *ChatPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
 
+	theme := appContext.GetTheme()
+
 	page.textView.SetDynamicColors(true)
 	page.textView.SetBorder(true)
 	page.textView.SetScrollable(true)
-	page.textView.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	page.textView.SetBackgroundColor(theme.BackgroundColor)
 
 	page.textView.SetChangedFunc(func() {
 		app.Draw()
 	})
 
-	page.textArea.SetTextStyle(BroChatStyle)
+	page.textArea.SetTextStyle(theme.TextAreaStyle)
 	page.textArea.SetBorder(true)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetTextColor(tcell.ColorWhite)
 
 	tvInstructions.SetText("(enter) Send - (pgup/pgdn) Scroll - (esc) Back")

@@ -21,7 +21,6 @@ type PageNavigator struct {
 // NewNavigator creates a new page navigator
 func NewNavigator() *PageNavigator {
 	pages := tview.NewPages()
-	pages.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
 
 	return &PageNavigator{
 		current:    WELCOME_PAGE,
@@ -57,8 +56,6 @@ func (nav *PageNavigator) NavigateTo(pageName PageSlug, param interface{}) {
 		close()
 	}
 
-	nav.current = pageName
-
 	open, ok := nav.openFuncs[pageName]
 
 	if ok {
@@ -66,6 +63,8 @@ func (nav *PageNavigator) NavigateTo(pageName PageSlug, param interface{}) {
 	}
 
 	nav.Pages.SwitchToPage(string(pageName))
+
+	nav.current = pageName
 }
 
 // Confirm creates a confirmation modal
@@ -120,8 +119,9 @@ func (nav *PageNavigator) AlertFatal(app *tview.Application, id string, message 
 		id,
 		tview.NewModal().
 			SetText("Fatal Error: "+message).
+			SetTextColor(tcell.ColorWhite).
 			AddButtons([]string{"Exit"}).
-			SetBackgroundColor(DangerBackgroundColor).
+			SetBackgroundColor(tcell.ColorRed).
 			SetTextColor(tcell.ColorWhite).
 			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
 				app.Stop()

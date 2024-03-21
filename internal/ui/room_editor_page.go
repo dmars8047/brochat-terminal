@@ -35,19 +35,22 @@ func NewRoomEditorPage(brochatClient *chat.BroChatClient) *RoomEditorPage {
 
 // Setup sets up the room editor page and registers it with the page navigator
 func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.form.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
-	page.form.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
-	page.form.SetLabelColor(BROCHAT_YELLOW_COLOR)
+	page.form.SetBackgroundColor(theme.AccentColor)
+	page.form.SetFieldBackgroundColor(theme.AccentColorTwo)
+	page.form.SetLabelColor(theme.HighlightColor)
 	page.form.SetBorder(true)
 	page.form.SetTitle(" BroChat - Room Creation Editor ")
 	page.form.SetTitleAlign(tview.AlignCenter)
-	page.form.SetButtonStyle(DEFAULT_BUTTON_STYLE)
-	page.form.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
+	page.form.SetButtonStyle(theme.ButtonStyle)
+	page.form.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 
 	//Add forms
 	page.form.AddInputField("Room Name", "", 0, nil, nil)
@@ -136,7 +139,7 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Enter a name and membership model for your new room.")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 

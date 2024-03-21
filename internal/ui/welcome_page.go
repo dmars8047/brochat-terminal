@@ -23,15 +23,18 @@ type WelcomePageParams struct {
 
 // Setup configures the welcome page and registers it with the page navigator
 func (page *WelcomePage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(4, 8, 8, 1, 1, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
 	logoBro.SetTextAlign(tview.AlignLeft).
-		SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+		SetBackgroundColor(theme.BackgroundColor)
 	logoBro.SetTextColor(tcell.ColorWhite)
 	logoBro.SetText(
 		`BBBBBBB\                      
@@ -45,8 +48,8 @@ BBBBBBB  |RR |      \OOOOOO  |
 
 	logoChat := tview.NewTextView()
 	logoChat.SetTextAlign(tview.AlignLeft)
-	logoChat.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
-	logoChat.SetTextColor(BROCHAT_YELLOW_COLOR)
+	logoChat.SetBackgroundColor(theme.BackgroundColor)
+	logoChat.SetTextColor(theme.HighlightColor)
 	logoChat.SetText(
 		` CCCCCC\  HH\                  TT\
 CC  __CC\ HH |                 TT |
@@ -59,19 +62,19 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	loginButton := tview.NewButton("Login").SetSelectedFunc(func() {
 		nav.NavigateTo(LOGIN_PAGE, nil)
-	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
+	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
 
 	registrationButton := tview.NewButton("Register").SetSelectedFunc(func() {
 		nav.NavigateTo(REGISTER_PAGE, nil)
-	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
+	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
 
 	configButton := tview.NewButton("Settings").SetSelectedFunc(func() {
 		nav.NavigateTo(APP_SETTINGS_PAGE, nil)
-	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
+	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
 
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
 		app.Stop()
-	}).SetActivatedStyle(ACTIVATED_BUTTON_STYLE).SetStyle(DEFAULT_BUTTON_STYLE)
+	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
 
 	buttonGrid := tview.NewGrid()
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -122,12 +125,12 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvVersionNumber.SetBackgroundColor(theme.BackgroundColor)
 	tvVersionNumber.SetText("Version - v0.1.0")
 	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 

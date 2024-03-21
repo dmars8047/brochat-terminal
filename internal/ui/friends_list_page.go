@@ -36,13 +36,16 @@ func NewFriendsListPage(brochatClient *chat.BroChatClient, feedClient *state.Fee
 }
 
 func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvHeader.SetBackgroundColor(theme.BackgroundColor)
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Friends List")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -81,12 +84,12 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 	})
 
 	page.tvInstructions.SetTextAlign(tview.AlignCenter)
-	page.tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	page.tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	page.tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	page.tvInstructions.SetText("(f) Find a new Bro - (p) View Pending - (esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)

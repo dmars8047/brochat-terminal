@@ -32,19 +32,23 @@ func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroCh
 }
 
 func (page *LoginPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	const title = " BroChat - Login "
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.loginForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
-	page.loginForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
-	page.loginForm.SetLabelColor(BROCHAT_YELLOW_COLOR)
+	page.loginForm.SetBackgroundColor(theme.AccentColor)
+	page.loginForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+	page.loginForm.SetFieldTextColor(theme.ForgroundColor)
+	page.loginForm.SetLabelColor(theme.HighlightColor)
 	page.loginForm.SetBorder(true).SetTitle(title).SetTitleAlign(tview.AlignCenter)
-	page.loginForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
-	page.loginForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
+	page.loginForm.SetButtonStyle(theme.ButtonStyle)
+	page.loginForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 	page.loginForm.AddInputField("Email", "", 0, nil, nil)
 	page.loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
@@ -189,7 +193,7 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("(CTRL + F) Forgot Password?")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 

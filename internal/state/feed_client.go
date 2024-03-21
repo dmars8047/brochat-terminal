@@ -42,9 +42,17 @@ func NewFeedClient(dialer *websocket.Dialer, baseUrl string, broChatClient *chat
 		chatMessageChannels:       make(map[string]chan chat.ChatMessage, 0),
 		userProfileUpdateChannels: make(map[string]chan chat.UserProfileUpdateCode, 0),
 		channelUpdateChannels:     make(map[string]chan string, 0),
+		Closed:                    true,
 		mu:                        sync.RWMutex{},
 		appContext:                appContext,
 	}
+}
+
+func (c *FeedClient) SetBaseAddress(address string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.url.Host = address
 }
 
 // SubscribeToChatMessages subscribes to chat messages and returns a channel to receive messages on.

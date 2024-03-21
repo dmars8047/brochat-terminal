@@ -36,13 +36,16 @@ func NewRoomFinderPage(brochatClient *chat.BroChatClient) *RoomFinderPage {
 
 // Setup sets up the room finder page and registers it with the page navigator
 func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvHeader.SetBackgroundColor(theme.BackgroundColor)
 	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Find Rooms")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -103,12 +106,12 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(enter) Join room -(esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)

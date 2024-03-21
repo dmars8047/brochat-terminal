@@ -34,17 +34,20 @@ func NewForgotPasswordPage(userAuthClient *idam.UserAuthClient) *ForgotPasswordP
 
 // Setup sets up the forgot password page
 func (page *ForgotPasswordPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.forgotPWForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
-	page.forgotPWForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
-	page.forgotPWForm.SetLabelColor(BROCHAT_YELLOW_COLOR)
+	page.forgotPWForm.SetBackgroundColor(theme.AccentColor)
+	page.forgotPWForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+	page.forgotPWForm.SetLabelColor(theme.HighlightColor)
 	page.forgotPWForm.SetBorder(true).SetTitle(FORGOT_PW_TITLE).SetTitleAlign(tview.AlignCenter)
-	page.forgotPWForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
-	page.forgotPWForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
+	page.forgotPWForm.SetButtonStyle(theme.ButtonStyle)
+	page.forgotPWForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 	page.forgotPWForm.AddInputField("Email", "", 0, nil, nil)
 
 	page.forgotPWForm.AddButton("Submit", func() {
@@ -106,7 +109,7 @@ func (page *ForgotPasswordPage) Setup(app *tview.Application, appContext *state.
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Enter your email to recieve a password reset link.")
 	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 

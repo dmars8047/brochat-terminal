@@ -110,6 +110,9 @@ func main() {
 	roomFinderPage := ui.NewRoomFinderPage(brochatClient)
 	roomFinderPage.Setup(app, appContext, nav)
 
+	// Set the background color of the navs pages
+	nav.Pages.SetBackgroundColor(appContext.GetTheme().BackgroundColor)
+
 	// Start the application.
 	err = app.SetRoot(nav.Pages, true).Run()
 

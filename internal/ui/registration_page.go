@@ -30,17 +30,22 @@ func NewRegistrationPage(userAuthClient *idam.UserAuthClient) *RegistrationPage 
 }
 
 func (page *RegistrationPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
+
+	theme := appContext.GetTheme()
+
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(DEFAULT_BACKGROUND_COLOR)
+	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(4, 0, 6)
 	grid.SetColumns(0, 70, 0)
 
 	page.registrationForm.SetBorder(true).SetTitle(" BroChat - Register ").SetTitleAlign(tview.AlignCenter)
-	page.registrationForm.SetBackgroundColor(ACCENT_BACKGROUND_COLOR)
-	page.registrationForm.SetFieldBackgroundColor(ACCENT_COLOR_TWO_COLOR)
-	page.registrationForm.SetButtonStyle(DEFAULT_BUTTON_STYLE)
-	page.registrationForm.SetButtonActivatedStyle(ACTIVATED_BUTTON_STYLE)
+	page.registrationForm.SetBackgroundColor(theme.AccentColor)
+	page.registrationForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+	page.registrationForm.SetFieldTextColor(theme.ForgroundColor)
+	page.registrationForm.SetLabelColor(theme.HighlightColor)
+	page.registrationForm.SetButtonStyle(theme.ButtonStyle)
+	page.registrationForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 
 	// If the user presses the escape key, navigate back to the welcome page
 	page.registrationForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
