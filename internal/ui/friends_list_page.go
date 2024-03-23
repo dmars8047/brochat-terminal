@@ -189,8 +189,9 @@ func (page *FriendsListPage) populateTable(brochatUser chat.User, thm theme.Them
 
 	page.tvInstructions.SetText(fmt.Sprintf("(f) Find a new Bro - (p) View Pending [%d] - (esc) Quit", countOfPendingFriendRequests))
 
-	for i, rel := range brochatUser.Relationships {
-		row := i + 1
+	row := 1
+
+	for _, rel := range brochatUser.Relationships {
 
 		if rel.Type != chat.RELATIONSHIP_TYPE_FRIEND {
 			continue
@@ -208,5 +209,7 @@ func (page *FriendsListPage) populateTable(brochatUser chat.User, thm theme.Them
 		page.table.SetCell(row, 2, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
 
 		page.userFriends[uint8(row)] = rel
+
+		row++
 	}
 }
