@@ -21,20 +21,22 @@ import (
 
 func main() {
 
+	const applicationVersion = "v0.1.3"
+
 	// Configure logging
 	config, file, err := provisionConfigFile()
 
 	if err != nil {
-		log.Fatalf("Fatal error: log files could not be configured - %v", err)
+		log.Fatalf("Broterm Version - %s\n\nFatal error: log files could not be configured - %v", applicationVersion, err)
 	}
 
 	defer file.Close()
 
 	if config.LoggingEnabled {
-		log.Printf("Broterm logging is enabled. Writing logs to %s\n", file.Name())
+		log.Printf("Broterm Version - %s\n\nBroterm logging is enabled. Writing logs to %s\n", applicationVersion, file.Name())
 		log.SetOutput(file)
 	} else {
-		log.Printf("Broterm logging is disabled.\n")
+		log.Printf("Broterm Version - %s\n\nBroterm logging is disabled.\n", applicationVersion)
 		// supress logging
 		log.SetOutput(&NullWriter{})
 	}
@@ -70,7 +72,7 @@ func main() {
 	feedClient := state.NewFeedClient(dialer, hostAddr, brochatClient, appContext)
 
 	// Setup the welcome page
-	welcomePage := ui.NewWelcomePage()
+	welcomePage := ui.NewWelcomePage(applicationVersion)
 	welcomePage.Setup(app, appContext, nav)
 
 	// Setup the app settings page

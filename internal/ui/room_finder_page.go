@@ -119,7 +119,6 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 		if page.currentThemeCode != theme.Code {
 			page.currentThemeCode = theme.Code
 			grid.SetBackgroundColor(theme.BackgroundColor)
-			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 			page.table.SetBordersColor(theme.BorderColor)
 			page.table.SetBorderColor(theme.BorderColor)
 			page.table.SetTitleColor(theme.TitleColor)
@@ -127,6 +126,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
 			tvHeader.SetBackgroundColor(theme.BackgroundColor)
 			tvHeader.SetTextColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 			tvInstructions.SetTextColor(theme.InfoColor)
 		}
 	}
@@ -153,7 +153,10 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 		return
 	}
 
+	thm := appContext.GetTheme()
+
 	page.table.SetCell(0, 0, tview.NewTableCell("Name").
+		SetTextColor(thm.ForgroundColor).
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
@@ -161,6 +164,7 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Owner").
+		SetTextColor(thm.ForgroundColor).
 		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
 		SetSelectable(false).

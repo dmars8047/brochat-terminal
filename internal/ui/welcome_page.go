@@ -10,13 +10,15 @@ const WELCOME_PAGE PageSlug = "welcome"
 
 // WelcomePage is the welcome page
 type WelcomePage struct {
-	currentThemeCode string
+	currentThemeCode   string
+	applicationVersion string
 }
 
 // NewWelcomePage creates a new instance of the welcome page
-func NewWelcomePage() *WelcomePage {
+func NewWelcomePage(applicationVersion string) *WelcomePage {
 	return &WelcomePage{
-		currentThemeCode: "NOT_SET",
+		currentThemeCode:   "NOT_SET",
+		applicationVersion: applicationVersion,
 	}
 }
 
@@ -124,7 +126,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetText("Version - v0.1.2")
+	tvVersionNumber.SetText("Version - " + page.applicationVersion)
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 2, 0, 2, 0, 2, 0)
 
