@@ -102,7 +102,7 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetText("(enter) Join room -(esc) Quit")
+	tvInstructions.SetText("(enter) Join room - (esc) Quit")
 
 	grid := tview.NewGrid()
 
