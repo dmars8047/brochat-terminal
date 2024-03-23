@@ -1,8 +1,12 @@
 package ui
 
 import (
+	"encoding/json"
 	"log"
+	"os"
+	"path/filepath"
 
+	"github.com/dmars8047/broterm/internal/config"
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/broterm/internal/theme"
 	"github.com/gdamore/tcell/v2"
@@ -13,15 +17,17 @@ const APP_SETTINGS_PAGE PageSlug = "app_settings"
 
 // AppSettingsPage is the location where users can configure application level settings.
 type AppSettingsPage struct {
-	settingsForm *tview.Form
-	currentTheme string
+	settingsForm  *tview.Form
+	currentTheme  string
+	logginEnabled bool
 }
 
 // NewAppSettingsPage creates a new instance of the application settings page
-func NewAppSettingsPage() *AppSettingsPage {
+func NewAppSettingsPage(logginEnabled bool) *AppSettingsPage {
 	return &AppSettingsPage{
-		settingsForm: tview.NewForm(),
-		currentTheme: "NOT_SET",
+		settingsForm:  tview.NewForm(),
+		currentTheme:  "NOT_SET",
+		logginEnabled: logginEnabled,
 	}
 }
 
@@ -41,11 +47,8 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 
 	page.settingsForm.SetBorder(true).SetTitle(title).SetTitleAlign(tview.AlignCenter)
 
-	// Input field for server address
-	page.settingsForm.AddInputField("Server Address", "", 0, nil, nil)
-
 	// Dropdown for theme selection
-	page.settingsForm.AddDropDown("Theme", []string{"default", "america", "matrix", "halloween", "christmas", "satanic"}, 0, nil)
+	page.settingsForm.AddDropDown("Theme: ", []string{"default", "america", "matrix", "halloween", "christmas", "satanic"}, 0, nil)
 
 	page.settingsForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
 		if event.Key() == tcell.KeyEscape {
@@ -81,7 +84,7 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 		page.settingsForm.SetTitleColor(theme.TitleColor)
 
 		// Get the dropdown
-		themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme").(*tview.DropDown)
+		themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme: ").(*tview.DropDown)
 
 		if ok {
 			themeDropdown.SetListStyles(theme.DropdownListUnselectedStyle, theme.DropdownListSelectedStyle)
@@ -93,7 +96,7 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 	}
 
 	// Get the dropdown
-	themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme").(*tview.DropDown)
+	themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme: ").(*tview.DropDown)
 
 	if !ok {
 		log.Printf("Theme dropdown form access failure on setup for settings page")
@@ -104,9 +107,75 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 		})
 	}
 
+	page.settingsForm.AddCheckbox("Keep Error Log Files: ", true, nil)
+
 	// Add the save and back buttons
 	page.settingsForm.AddButton("Save & Apply", func() {
 
+		// Get the logs flag from the form
+		logsCheckbox, ok := page.settingsForm.GetFormItemByLabel("Keep Error Log Files: ").(*tview.Checkbox)
+
+		if !ok {
+			log.Printf("Logs checkbox form access failure on save for settings page")
+			panic("logs checkbox form access failure")
+		}
+
+		// Get the theme from the dropdown
+		themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme: ").(*tview.DropDown)
+
+		if !ok {
+			log.Printf("Theme dropdown form access failure on save for settings page")
+			panic("theme dropdown form access failure")
+		}
+
+		_, themeText := themeDropdown.GetCurrentOption()
+
+		appSettings := config.NewConfigSettings()
+		appSettings.Theme = themeText
+		appSettings.LoggingEnabled = logsCheckbox.IsChecked()
+
+		bytesToSave, err := json.Marshal(appSettings)
+
+		if err != nil {
+			log.Printf("Error marshalling app settings: %v", err)
+			panic("error marshalling app settings")
+		}
+
+		homeDir, err := os.UserHomeDir()
+
+		if err != nil {
+			log.Printf("Error getting user home directory: %v", err)
+			panic("error getting user home directory")
+		}
+
+		configDir := filepath.Join(homeDir, config.DEFAULT_CONFIG_DIRECTORY_NAME)
+
+		//If the config directory does not exist, create it
+		if _, err := os.Stat(configDir); os.IsNotExist(err) {
+			err = os.Mkdir(configDir, os.ModePerm)
+
+			if err != nil {
+				log.Printf("Error creating config directory: %v", err)
+				panic("error creating config directory")
+			}
+		}
+
+		configFilePath := filepath.Join(configDir, config.CONFIG_FILE_NAME)
+
+		err = os.WriteFile(configFilePath, bytesToSave, 0644)
+
+		if err != nil {
+			log.Printf("Error writing app settings to file: %v", err)
+			panic("error writing app settings to file")
+		}
+
+		// Save the theme to the config
+		appContext.SetTheme(themeText)
+		page.logginEnabled = logsCheckbox.IsChecked()
+
+		nav.AlertWithDoneFunc("Settings Saved", "Settings have been saved and applied. Some settings may require an application restart.", func(_ int, _ string) {
+			nav.NavigateTo(WELCOME_PAGE, nil)
+		})
 	})
 
 	page.settingsForm.AddButton("Back", func() {
@@ -137,16 +206,17 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 			themeDropdown.SetCurrentOption(0)
 		}
 
-	}, func() {
-		applyTheme(nil)
-
-		// Clear the server address field
-		serverAddressInput, ok := page.settingsForm.GetFormItemByLabel("Server Address").(*tview.InputField)
+		// Set the logs checkbox to the current value
+		logsCheckbox, ok := page.settingsForm.GetFormItemByLabel("Keep Error Log Files: ").(*tview.Checkbox)
 
 		if !ok {
-			panic("server address input form access failure")
+			log.Printf("Logs checkbox form access failure on open for settings page")
+			panic("logs checkbox form access failure")
 		}
 
-		serverAddressInput.SetText("")
+		logsCheckbox.SetChecked(page.logginEnabled)
+
+	}, func() {
+		applyTheme(nil)
 	})
 }

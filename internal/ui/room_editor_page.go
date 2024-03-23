@@ -47,7 +47,7 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 
 	//Add forms
 	page.form.AddInputField("Room Name", "", 0, nil, nil)
-	page.form.AddDropDown("Membership Model", []string{string(chat.PUBLIC_MEMBERSHIP_MODEL), string(chat.FRIENDS_MEMBERSHIP_MODEL)}, -1, nil)
+	page.form.AddDropDown("Membership Model", []string{string(chat.PUBLIC_MEMBERSHIP_MODEL), string(chat.FRIENDS_MEMBERSHIP_MODEL)}, 0, nil)
 
 	page.form.AddButton("Submit", func() {
 		accessToken, ok := appContext.GetAccessToken()
@@ -186,5 +186,5 @@ func (page *RoomEditorPage) onPageClose() {
 		panic("membership model dropdown form clear failure")
 	}
 
-	membModelDropdown.SetCurrentOption(-1)
+	membModelDropdown.SetCurrentOption(0)
 }

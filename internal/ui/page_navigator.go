@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gdamore/tcell/v2"
+	"github.com/dmars8047/broterm/internal/state"
 	"github.com/rivo/tview"
 )
 
@@ -14,15 +14,17 @@ type PageSlug string
 type PageNavigator struct {
 	current    PageSlug
 	Pages      *tview.Pages
+	appContext *state.ApplicationContext
 	openFuncs  map[PageSlug]func(interface{})
 	closeFuncs map[PageSlug]func()
 }
 
 // NewNavigator creates a new page navigator
-func NewNavigator() *PageNavigator {
+func NewNavigator(appContext *state.ApplicationContext) *PageNavigator {
 	pages := tview.NewPages()
 
 	return &PageNavigator{
+		appContext: appContext,
 		current:    WELCOME_PAGE,
 		Pages:      pages,
 		openFuncs:  make(map[PageSlug]func(interface{})),
@@ -69,17 +71,29 @@ func (nav *PageNavigator) NavigateTo(pageName PageSlug, param interface{}) {
 
 // Confirm creates a confirmation modal
 func (nav *PageNavigator) Confirm(id string, massage string, yesFunc func()) *tview.Pages {
+	theme := nav.appContext.GetTheme()
+
+	modal := tview.NewModal().
+		SetText(massage).
+		AddButtons([]string{"Yes", "No"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			if buttonLabel == "Yes" {
+				yesFunc()
+			}
+			nav.Pages.HidePage(id).RemovePage(id)
+		})
+
+	modal.SetBackgroundColor(theme.BackgroundColor)
+	modal.SetTextColor(theme.ForgroundColor)
+	modal.SetButtonStyle(theme.ButtonStyle)
+	modal.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+	modal.SetBorderColor(theme.BorderColor)
+	modal.SetBorderStyle(theme.TextAreaTextStyle)
+	modal.SetTitleColor(theme.TitleColor)
+
 	return nav.Pages.AddPage(
 		id,
-		tview.NewModal().
-			SetText(massage).
-			AddButtons([]string{"Yes", "No"}).
-			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-				if buttonLabel == "Yes" {
-					yesFunc()
-				}
-				nav.Pages.HidePage(id).RemovePage(id)
-			}),
+		modal,
 		false,
 		true,
 	)
@@ -87,14 +101,26 @@ func (nav *PageNavigator) Confirm(id string, massage string, yesFunc func()) *tv
 
 // Alert creates an alert modal
 func (nav *PageNavigator) Alert(id string, message string) *tview.Pages {
+	theme := nav.appContext.GetTheme()
+
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"Close"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			nav.Pages.HidePage(id).RemovePage(id)
+		})
+
+	modal.SetBackgroundColor(theme.BackgroundColor)
+	modal.SetTextColor(theme.ForgroundColor)
+	modal.SetButtonStyle(theme.ButtonStyle)
+	modal.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+	modal.SetBorderColor(theme.BorderColor)
+	modal.SetBorderStyle(theme.TextAreaTextStyle)
+	modal.SetTitleColor(theme.TitleColor)
+
 	return nav.Pages.AddPage(
 		id,
-		tview.NewModal().
-			SetText(message).
-			AddButtons([]string{"Close"}).
-			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-				nav.Pages.HidePage(id).RemovePage(id)
-			}),
+		modal,
 		false,
 		true,
 	)
@@ -102,12 +128,24 @@ func (nav *PageNavigator) Alert(id string, message string) *tview.Pages {
 
 // AlertWithDoneFunc creates an alert modal with a done function
 func (nav *PageNavigator) AlertWithDoneFunc(id string, message string, doneFunc func(buttonIndex int, buttonLabel string)) *tview.Pages {
+	theme := nav.appContext.GetTheme()
+
+	modal := tview.NewModal().
+		SetText(message).
+		AddButtons([]string{"Close"}).
+		SetDoneFunc(doneFunc)
+
+	modal.SetBackgroundColor(theme.BackgroundColor)
+	modal.SetTextColor(theme.ForgroundColor)
+	modal.SetButtonStyle(theme.ButtonStyle)
+	modal.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+	modal.SetBorderColor(theme.BorderColor)
+	modal.SetBorderStyle(theme.TextAreaTextStyle)
+	modal.SetTitleColor(theme.TitleColor)
+
 	return nav.Pages.AddPage(
 		id,
-		tview.NewModal().
-			SetText(message).
-			AddButtons([]string{"Close"}).
-			SetDoneFunc(doneFunc),
+		modal,
 		false,
 		true,
 	)
@@ -115,17 +153,26 @@ func (nav *PageNavigator) AlertWithDoneFunc(id string, message string, doneFunc 
 
 // AlertFatal creates a fatal alert modal
 func (nav *PageNavigator) AlertFatal(app *tview.Application, id string, message string) *tview.Pages {
+	theme := nav.appContext.GetTheme()
+
+	modal := tview.NewModal().
+		SetText("Fatal Error: " + message).
+		AddButtons([]string{"Exit"}).
+		SetDoneFunc(func(buttonIndex int, buttonLabel string) {
+			app.Stop()
+		})
+
+	modal.SetBackgroundColor(theme.BackgroundColor)
+	modal.SetTextColor(theme.ForgroundColor)
+	modal.SetButtonStyle(theme.ButtonStyle)
+	modal.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+	modal.SetBorderColor(theme.BorderColor)
+	modal.SetBorderStyle(theme.TextAreaTextStyle)
+	modal.SetTitleColor(theme.TitleColor)
+
 	return nav.Pages.AddPage(
 		id,
-		tview.NewModal().
-			SetText("Fatal Error: "+message).
-			SetTextColor(tcell.ColorWhite).
-			AddButtons([]string{"Exit"}).
-			SetBackgroundColor(tcell.ColorRed).
-			SetTextColor(tcell.ColorWhite).
-			SetDoneFunc(func(buttonIndex int, buttonLabel string) {
-				app.Stop()
-			}),
+		modal,
 		false,
 		true,
 	)
