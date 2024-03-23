@@ -17,7 +17,7 @@ import (
 
 const (
 	feedSuffix = "/api/brochat/connect"
-	feedScheme = "ws"
+	feedScheme = "wss"
 )
 
 type FeedClient struct {
@@ -249,9 +249,7 @@ func (c *FeedClient) Connect() error {
 						continue
 					}
 
-					usrProfile := result.Content
-
-					c.appContext.SetBrochatUser(usrProfile)
+					c.appContext.SetBrochatUser(result.Content)
 
 					var userProfileUpdatedEvent chat.UserProfileUpdatedEvent
 

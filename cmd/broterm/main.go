@@ -31,15 +31,12 @@ func main() {
 	defer file.Close()
 
 	if config.LoggingEnabled {
-		log.SetOutput(file)
 		log.Printf("Broterm logging is enabled. Writing logs to %s\n", file.Name())
+		log.SetOutput(file)
 	} else {
-		// IO.Writer that does nothing
-		nullWriter := NullWriter{}
 		log.Printf("Broterm logging is disabled.\n")
-
 		// supress logging
-		log.SetOutput(&nullWriter)
+		log.SetOutput(&NullWriter{})
 	}
 
 	// Setup the http client
@@ -47,10 +44,13 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 
-	// Setup dependencies
-	userAuthClient := idam.NewUserAuthClient(httpClient, "http://localhost:8083")
+	// const hostAddr = "dev.marshall-labs.com"
+	const hostAddr = "dev.marshall-labs.com"
 
-	brochatClient := chat.NewBroChatClient(httpClient, "http://localhost:8083")
+	// Setup dependencies
+	userAuthClient := idam.NewUserAuthClient(httpClient, "https://"+hostAddr)
+
+	brochatClient := chat.NewBroChatClient(httpClient, "https://"+hostAddr)
 
 	// Configure the application
 	app := tview.NewApplication()
@@ -68,7 +68,7 @@ func main() {
 		HandshakeTimeout: 10 * time.Second,
 	}
 
-	feedClient := state.NewFeedClient(dialer, "localhost:8083", brochatClient, appContext)
+	feedClient := state.NewFeedClient(dialer, hostAddr, brochatClient, appContext)
 
 	// Setup the welcome page
 	welcomePage := ui.NewWelcomePage()
@@ -135,8 +135,10 @@ func main() {
 	}
 }
 
+// IO.Writer that does nothing
 type NullWriter struct{}
 
+// Write does nothing
 func (NullWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 

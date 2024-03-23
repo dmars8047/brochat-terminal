@@ -124,7 +124,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetText("Version - v0.1.0")
+	tvVersionNumber.SetText("Version - v0.1.1")
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 2, 0, 2, 0, 2, 0)
 
