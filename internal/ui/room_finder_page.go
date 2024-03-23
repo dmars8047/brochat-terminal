@@ -157,7 +157,6 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 
 	page.table.SetCell(0, 0, tview.NewTableCell("Name").
 		SetTextColor(thm.ForgroundColor).
-		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
 		SetSelectable(false).
@@ -165,7 +164,6 @@ func (page *RoomFinderPage) onPageLoad(appContext *state.ApplicationContext, nav
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Owner").
 		SetTextColor(thm.ForgroundColor).
-		SetTextColor(tcell.ColorWhite).
 		SetAlign(tview.AlignCenter).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
