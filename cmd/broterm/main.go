@@ -44,7 +44,6 @@ func main() {
 		Timeout: 10 * time.Second,
 	}
 
-	// const hostAddr = "dev.marshall-labs.com"
 	const hostAddr = "dev.marshall-labs.com"
 
 	// Setup dependencies
