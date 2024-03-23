@@ -124,7 +124,7 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetText("Version - v0.1.1")
+	tvVersionNumber.SetText("Version - v0.1.2")
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 2, 0, 2, 0, 2, 0)
 
@@ -178,6 +178,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	nav.Register(WELCOME_PAGE, grid, true, true, func(param interface{}) {
 		applyTheme()
 		if param != nil {
+			theme := appContext.GetTheme()
+
 			welcomPageParameters := param.(WelcomePageParams)
 			if welcomPageParameters.isRedirect {
 				modal := tview.NewModal()
@@ -187,6 +189,14 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 						grid.RemoveItem(modal)
 						app.SetFocus(loginButton)
 					})
+
+				modal.SetBackgroundColor(theme.BackgroundColor)
+				modal.SetTextColor(theme.ForgroundColor)
+				modal.SetButtonStyle(theme.ButtonStyle)
+				modal.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+				modal.SetBorderColor(theme.BorderColor)
+				modal.SetBorderStyle(theme.TextAreaTextStyle)
+				modal.SetTitleColor(theme.TitleColor)
 
 				grid.AddItem(modal, 3, 1, 1, 2, 0, 0, true)
 				app.SetFocus(modal)

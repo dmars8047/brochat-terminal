@@ -120,9 +120,11 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 			page.currentThemeCode = theme.Code
 			grid.SetBackgroundColor(theme.BackgroundColor)
 			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBordersColor(theme.BorderColor)
 			page.table.SetBorderColor(theme.BorderColor)
 			page.table.SetTitleColor(theme.TitleColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
 			tvHeader.SetBackgroundColor(theme.BackgroundColor)
 			tvHeader.SetTextColor(theme.TitleColor)
 			tvInstructions.SetTextColor(theme.InfoColor)
