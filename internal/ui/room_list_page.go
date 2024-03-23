@@ -5,6 +5,7 @@ import (
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/broterm/internal/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -17,32 +18,28 @@ const (
 )
 
 type RoomListPage struct {
-	brochatClient *chat.BroChatClient
-	feedClient    *state.FeedClient
-	table         *tview.Table
-	userRooms     map[int]chat.Room
+	brochatClient    *chat.BroChatClient
+	feedClient       *state.FeedClient
+	table            *tview.Table
+	userRooms        map[int]chat.Room
+	currentThemeCode string
 }
 
 func NewRoomListPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *RoomListPage {
 	return &RoomListPage{
-		brochatClient: brochatClient,
-		feedClient:    feedClient,
-		table:         tview.NewTable(),
-		userRooms:     make(map[int]chat.Room, 0),
+		brochatClient:    brochatClient,
+		feedClient:       feedClient,
+		table:            tview.NewTable(),
+		userRooms:        make(map[int]chat.Room, 0),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 func (page *RoomListPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(theme.BackgroundColor)
-	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Room List")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -82,12 +79,9 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(n) Create a Room - (f) Find a Room - (esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -99,8 +93,29 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 	var pageContext context.Context
 	var cancel context.CancelFunc
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBordersColor(theme.BorderColor)
+			page.table.SetBorderColor(theme.BorderColor)
+			page.table.SetTitleColor(theme.TitleColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
+			tvHeader.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetTextColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(ROOM_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
+			applyTheme()
 			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
 			page.onPageLoad(app, appContext, pageContext)
 		},
@@ -111,7 +126,7 @@ func (page *RoomListPage) Setup(app *tview.Application, appContext *state.Applic
 }
 
 func (page *RoomListPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, pageContext context.Context) {
-	page.populateTable(appContext.GetBrochatUser())
+	page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 
 	// Create a go routine to monitor for changes to the user's rooms via a user profile update event
 	go func() {
@@ -125,7 +140,7 @@ func (page *RoomListPage) onPageLoad(app *tview.Application, appContext *state.A
 			case eventCode := <-userUpdatedChannel:
 				if eventCode == chat.USER_PROFILE_UPDATE_CODE_ROOM_UPDATE {
 					app.QueueUpdateDraw(func() {
-						page.populateTable(appContext.GetBrochatUser())
+						page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 					})
 				}
 			}
@@ -138,16 +153,16 @@ func (page *RoomListPage) onPageClose() {
 	page.table.Clear()
 }
 
-func (page *RoomListPage) populateTable(brochatUser chat.User) {
+func (page *RoomListPage) populateTable(brochatUser chat.User, thm theme.Theme) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Name").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Owner").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
@@ -155,8 +170,8 @@ func (page *RoomListPage) populateTable(brochatUser chat.User) {
 	for i, rel := range brochatUser.Rooms {
 		row := i + 1
 
-		page.table.SetCell(row, 0, tview.NewTableCell(rel.Name).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
-		page.table.SetCell(row, 1, tview.NewTableCell(rel.Owner.Username).SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+		page.table.SetCell(row, 0, tview.NewTableCell(rel.Name).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
+		page.table.SetCell(row, 1, tview.NewTableCell(rel.Owner.Username).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 
 		page.userRooms[row] = rel
 	}

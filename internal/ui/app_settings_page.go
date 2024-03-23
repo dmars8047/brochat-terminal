@@ -33,7 +33,7 @@ func NewAppSettingsPage() *AppSettingsPage {
 func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
 	const title = " BroChat - Application Settings "
 
-	page.currentTheme = appContext.GetTheme().Name
+	page.currentTheme = appContext.GetTheme().Code
 
 	grid := tview.NewGrid()
 	grid.SetRows(4, 0, 1, 3, 4)
@@ -68,15 +68,17 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 		}
 
 		nav.Pages.SetBackgroundColor(theme.BackgroundColor)
+		theme.ApplyGlobals()
 
 		grid.SetBackgroundColor(theme.BackgroundColor)
-
 		page.settingsForm.SetBackgroundColor(theme.AccentColor)
 		page.settingsForm.SetFieldBackgroundColor(theme.AccentColorTwo)
 		page.settingsForm.SetFieldTextColor(theme.ForgroundColor)
 		page.settingsForm.SetLabelColor(theme.HighlightColor)
 		page.settingsForm.SetButtonStyle(theme.ButtonStyle)
 		page.settingsForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+		page.settingsForm.SetBorderColor(theme.BorderColor)
+		page.settingsForm.SetTitleColor(theme.TitleColor)
 
 		// Get the dropdown
 		themeDropdown, ok := page.settingsForm.GetFormItemByLabel("Theme").(*tview.DropDown)
@@ -87,7 +89,7 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 			log.Printf("Theme dropdown form access failure on theme change for settings page")
 		}
 
-		page.currentTheme = theme.Name
+		page.currentTheme = theme.Code
 	}
 
 	// Get the dropdown
@@ -99,9 +101,6 @@ func (page *AppSettingsPage) Setup(app *tview.Application, appContext *state.App
 		themeDropdown.SetSelectedFunc(func(text string, index int) {
 			preview := theme.NewTheme(text)
 			applyTheme(preview)
-			tview.Styles.BorderColor = tcell.ColorWhite
-			tview.Styles.TitleColor = tcell.ColorWhite
-			tview.Styles.PrimaryTextColor = tcell.ColorWhite
 		})
 	}
 

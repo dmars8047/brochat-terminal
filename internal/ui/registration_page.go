@@ -19,6 +19,7 @@ const (
 type RegistrationPage struct {
 	userAuthClient   *idam.UserAuthClient
 	registrationForm *tview.Form
+	currentThemCode  string
 }
 
 // NewRegistrationPage creates a new instance of the registration page
@@ -26,26 +27,17 @@ func NewRegistrationPage(userAuthClient *idam.UserAuthClient) *RegistrationPage 
 	return &RegistrationPage{
 		userAuthClient:   userAuthClient,
 		registrationForm: tview.NewForm(),
+		currentThemCode:  "NOT_SET",
 	}
 }
 
 func (page *RegistrationPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(4, 0, 6)
 	grid.SetColumns(0, 70, 0)
 
 	page.registrationForm.SetBorder(true).SetTitle(" BroChat - Register ").SetTitleAlign(tview.AlignCenter)
-	page.registrationForm.SetBackgroundColor(theme.AccentColor)
-	page.registrationForm.SetFieldBackgroundColor(theme.AccentColorTwo)
-	page.registrationForm.SetFieldTextColor(theme.ForgroundColor)
-	page.registrationForm.SetLabelColor(theme.HighlightColor)
-	page.registrationForm.SetButtonStyle(theme.ButtonStyle)
-	page.registrationForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 
 	// If the user presses the escape key, navigate back to the welcome page
 	page.registrationForm.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -185,8 +177,28 @@ func (page *RegistrationPage) Setup(app *tview.Application, appContext *state.Ap
 
 	grid.AddItem(page.registrationForm, 1, 1, 1, 1, 0, 0, true)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemCode != theme.Code {
+			page.currentThemCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.registrationForm.SetBackgroundColor(theme.AccentColor)
+			page.registrationForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+			page.registrationForm.SetFieldTextColor(theme.ForgroundColor)
+			page.registrationForm.SetLabelColor(theme.HighlightColor)
+			page.registrationForm.SetButtonStyle(theme.ButtonStyle)
+			page.registrationForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+			page.registrationForm.SetBorderColor(theme.BorderColor)
+			page.registrationForm.SetTitleColor(theme.TitleColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(REGISTER_PAGE, grid, true, false,
 		func(param interface{}) {
+			applyTheme()
 			page.onPageLoad()
 		},
 		func() {

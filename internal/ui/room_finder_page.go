@@ -20,32 +20,28 @@ const (
 
 // RoomFinderPage is the room finder page
 type RoomFinderPage struct {
-	brochatClient *chat.BroChatClient
-	table         *tview.Table
-	publicRooms   map[int]chat.Room
+	brochatClient    *chat.BroChatClient
+	table            *tview.Table
+	publicRooms      map[int]chat.Room
+	currentThemeCode string
 }
 
 // NewRoomFinderPage creates a new room finder page
 func NewRoomFinderPage(brochatClient *chat.BroChatClient) *RoomFinderPage {
 	return &RoomFinderPage{
-		brochatClient: brochatClient,
-		table:         tview.NewTable(),
-		publicRooms:   make(map[int]chat.Room, 0),
+		brochatClient:    brochatClient,
+		table:            tview.NewTable(),
+		publicRooms:      make(map[int]chat.Room, 0),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 // Setup sets up the room finder page and registers it with the page navigator
 func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(theme.BackgroundColor)
-	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Find Rooms")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -106,12 +102,9 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(enter) Join room -(esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -120,8 +113,27 @@ func (page *RoomFinderPage) Setup(app *tview.Application, appContext *state.Appl
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBorderColor(theme.BorderColor)
+			page.table.SetTitleColor(theme.TitleColor)
+			tvHeader.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetTextColor(theme.TitleColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(ROOM_FINDER_PAGE, grid, true, false,
 		func(_ interface{}) {
+			applyTheme()
 			page.onPageLoad(appContext, nav)
 		},
 		func() {

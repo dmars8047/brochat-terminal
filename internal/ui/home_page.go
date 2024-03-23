@@ -13,14 +13,14 @@ import (
 const HOME_PAGE PageSlug = "home"
 
 type HomePage struct {
-	userAuthClient *idam.UserAuthClient
-	currentTheme   string
+	userAuthClient   *idam.UserAuthClient
+	currentThemeCode string
 }
 
 func NewHomePage(userAuthClient *idam.UserAuthClient) *HomePage {
 	return &HomePage{
-		userAuthClient: userAuthClient,
-		currentTheme:   "NOT_SET",
+		userAuthClient:   userAuthClient,
+		currentThemeCode: "NOT_SET",
 	}
 }
 
@@ -67,12 +67,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		nav.NavigateTo(ROOM_LIST_PAGE, nil)
 	})
 
-	settingsButton := tview.NewButton("Settings")
-
-	settingsButton.SetSelectedFunc(func() {
-		nav.Alert("home:menu:alert:info", "Settings Not Implemented Yet")
-	})
-
 	logoutButton := tview.NewButton("Logout")
 
 	logoutButton.SetSelectedFunc(func() {
@@ -104,10 +98,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		tvInstructions.SetText("Sign out of your account.")
 	})
 
-	settingsButton.SetFocusFunc(func() {
-		tvInstructions.SetText("Change your account settings.")
-	})
-
 	chatButton.SetFocusFunc(func() {
 		tvInstructions.SetText("Chat in a room or find one to join.")
 	})
@@ -122,8 +112,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 			if brosButton.HasFocus() {
 				app.SetFocus(chatButton)
 			} else if chatButton.HasFocus() {
-				app.SetFocus(settingsButton)
-			} else if settingsButton.HasFocus() {
 				app.SetFocus(logoutButton)
 			} else if logoutButton.HasFocus() {
 				app.SetFocus(brosButton)
@@ -132,8 +120,6 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 		goLeft := func() {
 			if logoutButton.HasFocus() {
-				app.SetFocus(settingsButton)
-			} else if settingsButton.HasFocus() {
 				app.SetFocus(chatButton)
 			} else if chatButton.HasFocus() {
 				app.SetFocus(brosButton)
@@ -160,13 +146,12 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	buttonGrid.SetRows(3, 1, 1).
-		SetColumns(0, 1, 0, 1, 0, 1, 0)
+		SetColumns(0, 1, 0, 1, 0)
 
 	buttonGrid.AddItem(brosButton, 0, 0, 1, 1, 0, 0, true).
 		AddItem(chatButton, 0, 2, 1, 1, 0, 0, true).
-		AddItem(settingsButton, 0, 4, 1, 1, 0, 0, true).
-		AddItem(logoutButton, 0, 6, 1, 1, 0, 0, true).
-		AddItem(tvInstructions, 2, 0, 1, 7, 0, 0, false)
+		AddItem(logoutButton, 0, 4, 1, 1, 0, 0, true).
+		AddItem(tvInstructions, 2, 0, 1, 5, 0, 0, false)
 
 	grid.AddItem(logoBro, 1, 1, 1, 1, 0, 0, false).
 		AddItem(logoChat, 1, 2, 1, 1, 0, 0, false).
@@ -176,7 +161,8 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	applyTheme := func() {
 		theme := appContext.GetTheme()
 
-		if theme.Name != page.currentTheme {
+		if theme.Code != page.currentThemeCode {
+			page.currentThemeCode = theme.Code
 			grid.SetBackgroundColor(theme.BackgroundColor)
 
 			logoBro.SetBackgroundColor(theme.BackgroundColor)
@@ -191,18 +177,15 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 			chatButton.SetActivatedStyle(theme.ActivatedButtonStyle)
 			chatButton.SetStyle(theme.ButtonStyle)
 
-			settingsButton.SetActivatedStyle(theme.ActivatedButtonStyle)
-			settingsButton.SetStyle(theme.ButtonStyle)
-
 			logoutButton.SetActivatedStyle(theme.ActivatedButtonStyle)
 			logoutButton.SetStyle(theme.ButtonStyle)
 
 			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-			tvInstructions.SetTextColor(tcell.ColorWhite)
-
-			page.currentTheme = theme.Name
+			tvInstructions.SetTextColor(theme.ForgroundColor)
 		}
 	}
+
+	applyTheme()
 
 	nav.Register(HOME_PAGE, grid, true, false,
 		func(_ interface{}) {

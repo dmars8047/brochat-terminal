@@ -50,7 +50,7 @@ func main() {
 	context, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	appContext := state.NewApplicationContext(context)
+	appContext := state.NewApplicationContext(context, "satanic")
 
 	dialer := &websocket.Dialer{
 		HandshakeTimeout: 10 * time.Second,
@@ -111,7 +111,9 @@ func main() {
 	roomFinderPage.Setup(app, appContext, nav)
 
 	// Set the background color of the navs pages
-	nav.Pages.SetBackgroundColor(appContext.GetTheme().BackgroundColor)
+	theme := appContext.GetTheme()
+	nav.Pages.SetBackgroundColor(theme.BackgroundColor)
+	theme.ApplyGlobals()
 
 	// Start the application.
 	err = app.SetRoot(nav.Pages, true).Run()

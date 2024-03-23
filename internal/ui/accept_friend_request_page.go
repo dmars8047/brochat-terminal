@@ -7,6 +7,7 @@ import (
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/broterm/internal/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -19,6 +20,7 @@ type AcceptFriendRequestPage struct {
 	userPendingRequests map[uint8]chat.UserRelationship
 	table               *tview.Table
 	feedClient          *state.FeedClient
+	currentThemeCode    string
 }
 
 // NewAcceptFriendRequestPage creates a new accept friend request page
@@ -28,6 +30,7 @@ func NewAcceptFriendRequestPage(brochatClient *chat.BroChatClient, feedClient *s
 		feedClient:          feedClient,
 		userPendingRequests: make(map[uint8]chat.UserRelationship, 0),
 		table:               tview.NewTable(),
+		currentThemeCode:    "NOT_SET",
 	}
 }
 
@@ -37,12 +40,9 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 	theme := appContext.GetTheme()
 
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(theme.BackgroundColor)
-	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Pending Friend Requests")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -99,8 +99,6 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
@@ -116,10 +114,30 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 	var pageContext context.Context
 	var cancel context.CancelFunc
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBordersColor(theme.BorderColor)
+			page.table.SetBorderColor(theme.BorderColor)
+			page.table.SetTitleColor(theme.TitleColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
+			tvHeader.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetTextColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(ACCEPT_FRIEND_REQUEST_PAGE, grid, true, false,
 		func(param interface{}) {
 			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
-
+			applyTheme()
 			page.onPageLoad(app, appContext, pageContext, page.feedClient)
 		},
 		func() {
@@ -132,7 +150,7 @@ func (page *AcceptFriendRequestPage) Setup(app *tview.Application, appContext *s
 func (page *AcceptFriendRequestPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext,
 	pageContext context.Context, feedClient *state.FeedClient) {
 
-	page.populateTable(appContext.GetBrochatUser())
+	page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 
 	go func() {
 		subId, userProfileUpdatesChannel := feedClient.SubscribeToUserProfileUpdates()
@@ -147,7 +165,7 @@ func (page *AcceptFriendRequestPage) onPageLoad(app *tview.Application, appConte
 				if updateCode == chat.USER_PROFILE_UPDATE_REASON_RELATIONSHIP_UPDATE {
 					page.table.Clear()
 					app.QueueUpdateDraw(func() {
-						page.populateTable(appContext.GetBrochatUser())
+						page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 					})
 				}
 			}
@@ -162,16 +180,16 @@ func (page *AcceptFriendRequestPage) onPageClose() {
 }
 
 // populateTable populates the users from the brochat user's relationships into the table
-func (page *AcceptFriendRequestPage) populateTable(brochatUser chat.User) {
+func (page *AcceptFriendRequestPage) populateTable(brochatUser chat.User, thm theme.Theme) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Last Active").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignRight).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
@@ -180,9 +198,9 @@ func (page *AcceptFriendRequestPage) populateTable(brochatUser chat.User) {
 
 	for _, rel := range brochatUser.Relationships {
 		if rel.Type&chat.RELATIONSHIP_TYPE_FRIEND_REQUEST_RECIEVED != 0 {
-			page.table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+			page.table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 			var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")
-			page.table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+			page.table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignRight))
 
 			page.userPendingRequests[uint8(row)] = rel
 			row++

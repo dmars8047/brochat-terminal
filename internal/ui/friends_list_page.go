@@ -6,6 +6,7 @@ import (
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/broterm/internal/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -18,34 +19,30 @@ const (
 )
 
 type FriendsListPage struct {
-	brochatClient  *chat.BroChatClient
-	feedClient     *state.FeedClient
-	table          *tview.Table
-	tvInstructions *tview.TextView
-	userFriends    map[uint8]chat.UserRelationship
+	brochatClient    *chat.BroChatClient
+	feedClient       *state.FeedClient
+	table            *tview.Table
+	tvInstructions   *tview.TextView
+	userFriends      map[uint8]chat.UserRelationship
+	currentThemeCode string
 }
 
 func NewFriendsListPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *FriendsListPage {
 	return &FriendsListPage{
-		brochatClient:  brochatClient,
-		feedClient:     feedClient,
-		table:          tview.NewTable(),
-		tvInstructions: tview.NewTextView(),
-		userFriends:    make(map[uint8]chat.UserRelationship, 0),
+		brochatClient:    brochatClient,
+		feedClient:       feedClient,
+		table:            tview.NewTable(),
+		tvInstructions:   tview.NewTextView(),
+		userFriends:      make(map[uint8]chat.UserRelationship, 0),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(theme.BackgroundColor)
-	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Friends List")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -84,12 +81,9 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 	})
 
 	page.tvInstructions.SetTextAlign(tview.AlignCenter)
-	page.tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	page.tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	page.tvInstructions.SetText("(f) Find a new Bro - (p) View Pending - (esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -101,9 +95,30 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 	var pageContext context.Context
 	var cancel context.CancelFunc
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetBordersColor(theme.BorderColor)
+			page.table.SetBorderColor(theme.BorderColor)
+			page.table.SetTitleColor(theme.TitleColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
+			tvHeader.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetTextColor(theme.TitleColor)
+			page.tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			page.tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(FRIENDS_LIST_PAGE, grid, true, false,
 		func(_ interface{}) {
 			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
+			applyTheme()
 			page.onPageLoad(app, appContext, pageContext)
 		},
 		func() {
@@ -113,7 +128,7 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 }
 
 func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *state.ApplicationContext, pageContext context.Context) {
-	page.populateTable(appContext.GetBrochatUser())
+	page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 
 	// Create a goroutine to listen for updates to the user's relationships
 	// If one is recieved then redraw the table
@@ -130,7 +145,7 @@ func (page *FriendsListPage) onPageLoad(app *tview.Application, appContext *stat
 				if updateCode == chat.USER_PROFILE_UPDATE_REASON_RELATIONSHIP_UPDATE {
 					page.table.Clear()
 					app.QueueUpdateDraw(func() {
-						page.populateTable(appContext.GetBrochatUser())
+						page.populateTable(appContext.GetBrochatUser(), appContext.GetTheme())
 					})
 				}
 			}
@@ -144,22 +159,22 @@ func (page *FriendsListPage) onPageClose() {
 	page.table.Clear()
 }
 
-func (page *FriendsListPage) populateTable(brochatUser chat.User) {
+func (page *FriendsListPage) populateTable(brochatUser chat.User, thm theme.Theme) {
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Status").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 2, tview.NewTableCell("Last Active").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignRight).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
@@ -181,11 +196,11 @@ func (page *FriendsListPage) populateTable(brochatUser chat.User) {
 			continue
 		}
 
-		page.table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+		page.table.SetCell(row, 0, tview.NewTableCell(rel.Username).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 		if rel.IsOnline {
-			page.table.SetCell(row, 1, tview.NewTableCell("Online").SetTextColor(tcell.ColorGreen).SetAlign(tview.AlignCenter))
+			page.table.SetCell(row, 1, tview.NewTableCell("Online").SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 		} else {
-			page.table.SetCell(row, 1, tview.NewTableCell("Offline").SetTextColor(tcell.ColorGray).SetAlign(tview.AlignCenter))
+			page.table.SetCell(row, 1, tview.NewTableCell("Offline").SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 		}
 
 		var dateString string = rel.LastOnlineUtc.Local().Format("Jan 2, 2006")

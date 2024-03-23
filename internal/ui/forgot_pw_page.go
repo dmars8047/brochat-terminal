@@ -4,7 +4,6 @@ import (
 	"github.com/dmars8047/broterm/internal/state"
 	"github.com/dmars8047/idamlib/idam"
 	"github.com/dmars8047/strval"
-	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
 
@@ -20,34 +19,27 @@ const (
 
 // ForgotPasswordPage is the forgot password page
 type ForgotPasswordPage struct {
-	userAuthClient *idam.UserAuthClient
-	forgotPWForm   *tview.Form
+	userAuthClient   *idam.UserAuthClient
+	forgotPWForm     *tview.Form
+	currentThemeCode string
 }
 
 // NewForgotPasswordPage creates a new instance of the forgot password page
 func NewForgotPasswordPage(userAuthClient *idam.UserAuthClient) *ForgotPasswordPage {
 	return &ForgotPasswordPage{
-		userAuthClient: userAuthClient,
-		forgotPWForm:   tview.NewForm(),
+		userAuthClient:   userAuthClient,
+		forgotPWForm:     tview.NewForm(),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 // Setup sets up the forgot password page
 func (page *ForgotPasswordPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.forgotPWForm.SetBackgroundColor(theme.AccentColor)
-	page.forgotPWForm.SetFieldBackgroundColor(theme.AccentColorTwo)
-	page.forgotPWForm.SetLabelColor(theme.HighlightColor)
 	page.forgotPWForm.SetBorder(true).SetTitle(FORGOT_PW_TITLE).SetTitleAlign(tview.AlignCenter)
-	page.forgotPWForm.SetButtonStyle(theme.ButtonStyle)
-	page.forgotPWForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 	page.forgotPWForm.AddInputField("Email", "", 0, nil, nil)
 
 	page.forgotPWForm.AddButton("Submit", func() {
@@ -109,15 +101,33 @@ func (page *ForgotPasswordPage) Setup(app *tview.Application, appContext *state.
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Enter your email to recieve a password reset link.")
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	grid.AddItem(page.forgotPWForm, 1, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.forgotPWForm.SetBackgroundColor(theme.AccentColor)
+			page.forgotPWForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+			page.forgotPWForm.SetLabelColor(theme.HighlightColor)
+			page.forgotPWForm.SetButtonStyle(theme.ButtonStyle)
+			page.forgotPWForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+			page.forgotPWForm.SetBorderColor(theme.BorderColor)
+			page.forgotPWForm.SetTitleColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(FORGOT_PW_PAGE, grid, true, false,
 		func(param interface{}) {
+			applyTheme()
 			page.onPageLoad()
 		},
 		func() {

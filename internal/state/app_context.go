@@ -24,10 +24,10 @@ type ApplicationContext struct {
 	theme             *theme.Theme
 }
 
-func NewApplicationContext(context context.Context) *ApplicationContext {
+func NewApplicationContext(context context.Context, themeCode string) *ApplicationContext {
 	return &ApplicationContext{
 		Context: context,
-		theme:   theme.NewTheme("satanic"),
+		theme:   theme.NewTheme(themeCode),
 	}
 }
 

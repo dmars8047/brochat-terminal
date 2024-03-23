@@ -23,6 +23,7 @@ type FindAFriendPage struct {
 	brochatClient *chat.BroChatClient
 	table         *tview.Table
 	users         map[uint8]chat.UserInfo
+	themeCode     string
 }
 
 // NewFindAFriendPage creates a new find a friend page
@@ -31,20 +32,16 @@ func NewFindAFriendPage(brochatClient *chat.BroChatClient) *FindAFriendPage {
 		brochatClient: brochatClient,
 		table:         tview.NewTable(),
 		users:         make(map[uint8]chat.UserInfo, 0),
+		themeCode:     "NOT_SET",
 	}
 }
 
 // Setup sets up the find a friend page and registers it with the page navigator
 func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-	theme := appContext.GetTheme()
-
 	tvHeader := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvHeader.SetBackgroundColor(theme.BackgroundColor)
-	tvHeader.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvHeader.SetText("Find Friends")
 
 	page.table.SetBorders(true)
-	page.table.SetBackgroundColor(theme.BackgroundColor)
 	page.table.SetFixed(1, 1)
 	page.table.SetSelectable(true, false)
 
@@ -101,12 +98,9 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 	tvInstructions.SetText("(esc) Quit")
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(2, 1, 1, 0, 1, 1, 2)
 	grid.SetColumns(0, 76, 0)
@@ -115,8 +109,29 @@ func (page *FindAFriendPage) Setup(app *tview.Application, appContext *state.App
 	grid.AddItem(page.table, 3, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 5, 1, 1, 1, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.themeCode != theme.Code {
+			page.themeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetBackgroundColor(theme.BackgroundColor)
+			tvHeader.SetTextColor(theme.TitleColor)
+			page.table.SetBordersColor(theme.BorderColor)
+			page.table.SetBorderColor(theme.BorderColor)
+			page.table.SetTitleColor(theme.TitleColor)
+			page.table.SetBackgroundColor(theme.BackgroundColor)
+			page.table.SetSelectedStyle(theme.DropdownListSelectedStyle)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(FRIENDS_FINDER_PAGE, grid, true, false,
 		func(_ interface{}) {
+			applyTheme()
 			page.onPageLoad(app, appContext, nav)
 		},
 		func() {
@@ -134,15 +149,17 @@ func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *stat
 		return
 	}
 
+	thm := appContext.GetTheme()
+
 	page.table.SetCell(0, 0, tview.NewTableCell("Username").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignCenter).
 		SetExpansion(1).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
 
 	page.table.SetCell(0, 1, tview.NewTableCell("Last Active").
-		SetTextColor(tcell.ColorWhite).
+		SetTextColor(thm.ForgroundColor).
 		SetAlign(tview.AlignRight).
 		SetSelectable(false).
 		SetAttributes(tcell.AttrBold|tcell.AttrUnderline))
@@ -174,9 +191,9 @@ func (page *FindAFriendPage) onPageLoad(app *tview.Application, appContext *stat
 	for i, usr := range usrs {
 		row := i + 1
 
-		page.table.SetCell(row, 0, tview.NewTableCell(usr.Username).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignCenter))
+		page.table.SetCell(row, 0, tview.NewTableCell(usr.Username).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignCenter))
 		var dateString string = usr.LastOnlineUtc.Local().Format("Jan 2, 2006")
-		page.table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(tcell.ColorWhite).SetAlign(tview.AlignRight))
+		page.table.SetCell(row, 1, tview.NewTableCell(dateString).SetTextColor(thm.ForgroundColor).SetAlign(tview.AlignRight))
 
 		page.users[uint8(row)] = usr
 	}

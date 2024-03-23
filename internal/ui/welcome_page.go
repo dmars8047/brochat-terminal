@@ -9,11 +9,15 @@ import (
 const WELCOME_PAGE PageSlug = "welcome"
 
 // WelcomePage is the welcome page
-type WelcomePage struct{}
+type WelcomePage struct {
+	currentThemeCode string
+}
 
 // NewWelcomePage creates a new instance of the welcome page
 func NewWelcomePage() *WelcomePage {
-	return &WelcomePage{}
+	return &WelcomePage{
+		currentThemeCode: "NOT_SET",
+	}
 }
 
 type WelcomePageParams struct {
@@ -23,19 +27,13 @@ type WelcomePageParams struct {
 
 // Setup configures the welcome page and registers it with the page navigator
 func (page *WelcomePage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 
 	grid.SetRows(4, 8, 8, 1, 1, 0).
 		SetColumns(0, 31, 39, 0)
 
 	logoBro := tview.NewTextView()
-	logoBro.SetTextAlign(tview.AlignLeft).
-		SetBackgroundColor(theme.BackgroundColor)
-	logoBro.SetTextColor(tcell.ColorWhite)
+	logoBro.SetTextAlign(tview.AlignLeft)
 	logoBro.SetText(
 		`BBBBBBB\                      
 BB  __BB\                     
@@ -48,8 +46,6 @@ BBBBBBB  |RR |      \OOOOOO  |
 
 	logoChat := tview.NewTextView()
 	logoChat.SetTextAlign(tview.AlignLeft)
-	logoChat.SetBackgroundColor(theme.BackgroundColor)
-	logoChat.SetTextColor(theme.HighlightColor)
 	logoChat.SetText(
 		` CCCCCC\  HH\                  TT\
 CC  __CC\ HH |                 TT |
@@ -62,19 +58,19 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 
 	loginButton := tview.NewButton("Login").SetSelectedFunc(func() {
 		nav.NavigateTo(LOGIN_PAGE, nil)
-	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
+	})
 
 	registrationButton := tview.NewButton("Register").SetSelectedFunc(func() {
 		nav.NavigateTo(REGISTER_PAGE, nil)
-	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
+	})
 
 	configButton := tview.NewButton("Settings").SetSelectedFunc(func() {
 		nav.NavigateTo(APP_SETTINGS_PAGE, nil)
-	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
+	})
 
 	exitButton := tview.NewButton("Exit").SetSelectedFunc(func() {
 		app.Stop()
-	}).SetActivatedStyle(theme.ActivatedButtonStyle).SetStyle(theme.ButtonStyle)
+	})
 
 	buttonGrid := tview.NewGrid()
 	buttonGrid.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -125,14 +121,10 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Navigate with Tab and Shift+Tab")
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	tvVersionNumber := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvVersionNumber.SetBackgroundColor(theme.BackgroundColor)
 	tvVersionNumber.SetText("Version - v0.1.0")
-	tvVersionNumber.SetTextColor(tcell.NewHexColor(0x777777))
 
 	buttonGrid.SetRows(3, 1, 1).SetColumns(0, 2, 0, 2, 0, 2, 0)
 
@@ -147,7 +139,44 @@ CC |  CC\ HH |  HH |AA  __AA | TT |TT\
 		AddItem(buttonGrid, 2, 1, 1, 2, 0, 0, true).
 		AddItem(tvVersionNumber, 4, 1, 1, 2, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			logoBro.SetBackgroundColor(theme.BackgroundColor)
+			logoBro.SetTextColor(tcell.ColorWhite)
+			logoChat.SetBackgroundColor(theme.BackgroundColor)
+			logoChat.SetTextColor(theme.HighlightColor)
+
+			loginButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			loginButton.SetStyle(theme.ButtonStyle)
+
+			registrationButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			registrationButton.SetStyle(theme.ButtonStyle)
+
+			configButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			configButton.SetStyle(theme.ButtonStyle)
+
+			exitButton.SetActivatedStyle(theme.ActivatedButtonStyle)
+			exitButton.SetStyle(theme.ButtonStyle)
+
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvVersionNumber.SetBackgroundColor(theme.BackgroundColor)
+
+			tvInstructions.SetTextColor(theme.InfoColor)
+			tvVersionNumber.SetTextColor(theme.InfoColorTwo)
+
+			theme.ApplyGlobals()
+			nav.Pages.SetBackgroundColor(theme.BackgroundColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(WELCOME_PAGE, grid, true, true, func(param interface{}) {
+		applyTheme()
 		if param != nil {
 			welcomPageParameters := param.(WelcomePageParams)
 			if welcomPageParameters.isRedirect {

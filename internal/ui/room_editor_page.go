@@ -21,36 +21,29 @@ const (
 
 // RoomEditorPage is the room editor page
 type RoomEditorPage struct {
-	brochatClient *chat.BroChatClient
-	form          *tview.Form
+	brochatClient    *chat.BroChatClient
+	form             *tview.Form
+	currentThemeCode string
 }
 
 // NewRoomEditorPage creates a new room editor page
 func NewRoomEditorPage(brochatClient *chat.BroChatClient) *RoomEditorPage {
 	return &RoomEditorPage{
-		brochatClient: brochatClient,
-		form:          tview.NewForm(),
+		brochatClient:    brochatClient,
+		form:             tview.NewForm(),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 // Setup sets up the room editor page and registers it with the page navigator
 func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.form.SetBackgroundColor(theme.AccentColor)
-	page.form.SetFieldBackgroundColor(theme.AccentColorTwo)
-	page.form.SetLabelColor(theme.HighlightColor)
 	page.form.SetBorder(true)
 	page.form.SetTitle(" BroChat - Room Creation Editor ")
 	page.form.SetTitleAlign(tview.AlignCenter)
-	page.form.SetButtonStyle(theme.ButtonStyle)
-	page.form.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 
 	//Add forms
 	page.form.AddInputField("Room Name", "", 0, nil, nil)
@@ -139,14 +132,33 @@ func (page *RoomEditorPage) Setup(app *tview.Application, appContext *state.Appl
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("Enter a name and membership model for your new room.")
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	grid.AddItem(page.form, 1, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.form.SetBackgroundColor(theme.AccentColor)
+			page.form.SetFieldBackgroundColor(theme.AccentColorTwo)
+			page.form.SetLabelColor(theme.HighlightColor)
+			page.form.SetButtonStyle(theme.ButtonStyle)
+			page.form.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+			page.form.SetBorderColor(theme.BorderColor)
+			page.form.SetTitleColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(ROOM_EDITOR_PAGE, grid, true, false, func(_ interface{}) {
+		applyTheme()
 		page.onPageLoad()
 	}, func() {
 		page.onPageClose()

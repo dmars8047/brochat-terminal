@@ -9,6 +9,7 @@ import (
 
 	"github.com/dmars8047/brolib/chat"
 	"github.com/dmars8047/broterm/internal/state"
+	"github.com/dmars8047/broterm/internal/theme"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )
@@ -17,43 +18,38 @@ const CHAT_PAGE PageSlug = "chat"
 
 // ChatPage is the chat page
 type ChatPage struct {
-	brochatClient *chat.BroChatClient
-	feedClient    *state.FeedClient
-	textView      *tview.TextView
-	textArea      *tview.TextArea
-	mu            sync.Mutex
+	brochatClient    *chat.BroChatClient
+	feedClient       *state.FeedClient
+	textView         *tview.TextView
+	textArea         *tview.TextArea
+	mu               sync.Mutex
+	currentThemeCode string
 }
 
 // NewChatPage creates a new chat page
 func NewChatPage(brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *ChatPage {
 	return &ChatPage{
-		brochatClient: brochatClient,
-		feedClient:    feedClient,
-		textView:      tview.NewTextView(),
-		textArea:      tview.NewTextArea(),
+		brochatClient:    brochatClient,
+		feedClient:       feedClient,
+		textView:         tview.NewTextView(),
+		textArea:         tview.NewTextArea(),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 // Setup configures the chat page and registers it with the page navigator
 func (page *ChatPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
-
-	theme := appContext.GetTheme()
-
 	page.textView.SetDynamicColors(true)
 	page.textView.SetBorder(true)
 	page.textView.SetScrollable(true)
-	page.textView.SetBackgroundColor(theme.BackgroundColor)
 
 	page.textView.SetChangedFunc(func() {
 		app.Draw()
 	})
 
-	page.textArea.SetTextStyle(theme.TextAreaStyle)
 	page.textArea.SetBorder(true)
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
-	tvInstructions.SetTextColor(tcell.ColorWhite)
 
 	tvInstructions.SetText("(enter) Send - (pgup/pgdn) Scroll - (esc) Back")
 
@@ -69,8 +65,31 @@ func (page *ChatPage) Setup(app *tview.Application, appContext *state.Applicatio
 	var pageContext context.Context
 	var cancel context.CancelFunc
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.textView.SetBackgroundColor(theme.BackgroundColor)
+			page.textView.SetBorderColor(theme.BorderColor)
+			page.textView.SetTitleColor(theme.TitleColor)
+
+			page.textArea.SetTextStyle(theme.TextAreaTextStyle)
+			page.textArea.SetBorderColor(theme.BorderColor)
+			page.textArea.SetTitleColor(theme.TitleColor)
+			page.textArea.SetBorderStyle(theme.TextAreaTextStyle)
+
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(CHAT_PAGE, grid, true, false,
 		func(param interface{}) {
+			applyTheme()
 			pageContext, cancel = appContext.GenerateUserSessionBoundContextWithCancel()
 			page.onPageLoad(param, app, appContext, nav, pageContext)
 		},
@@ -131,8 +150,10 @@ func (page *ChatPage) onPageLoad(param interface{},
 		page.textView.SetTitle(fmt.Sprintf(" %s ", chatParam.title))
 	}
 
+	theme := appContext.GetTheme()
+
 	// Get the color manifest
-	colorManifest := getColorManifest(channel.Users)
+	colorManifest := getColorManifest(channel.Users, theme)
 
 	const pageSize = 100
 	entireConversationLoaded := false
@@ -204,7 +225,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 			dateString = msg.RecievedAtUtc.Local().Format("Jan 2, 2006 3:04 PM")
 		}
 
-		msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+		msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, theme.ChatTextColor.CSS(), msg.Content)
 		fmt.Fprintln(w, msgString)
 	}
 
@@ -298,7 +319,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 							dateString = msg.RecievedAtUtc.Local().Format("Jan 2, 2006 3:04 PM")
 						}
 
-						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, theme.ChatTextColor.CSS(), msg.Content)
 						fmt.Fprintln(writer, msgString)
 					}
 
@@ -385,7 +406,8 @@ func (page *ChatPage) onPageLoad(param interface{},
 						}
 					}
 
-					colorManifest = getColorManifest(usersForManifest)
+					colorManifest = getColorManifest(usersForManifest, theme)
+
 					channel = newChannel
 				}
 			}
@@ -429,7 +451,7 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 						dateString := msg.RecievedAtUtc.Local().Format(time.Kitchen)
 
-						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, "#FFFFFF", msg.Content)
+						msgString := fmt.Sprintf("[%s]%s [%s][%s]: %s", color, senderUsername, dateString, theme.ChatTextColor.CSS(), msg.Content)
 						tv.Write([]byte(msgString + "\n"))
 						tv.ScrollToEnd()
 					})
@@ -459,17 +481,9 @@ type ChatPageParameters struct {
 // getColorManifest takes in a slice of users and assigns each users and a color.
 // The color manifest is a map of user ids to hex colors.
 // The colors are assigned based upon the users index (position) in the slice.
-func getColorManifest(users []chat.UserInfo) map[string]string {
-	var possibleColors = []string{
-		"#33DA7A", // Light Green
-		"#C061CB", // Lilac
-		"#FF6B30", // Orange
-		"#5928ED", // Purple
-		"#00FFFF", // Cyan
-		"#FF5555", // Light Red
-		"#FAEC34", // Yellow
-		"#FFAAFF", // Light Pink
-	}
+func getColorManifest(users []chat.UserInfo, thm theme.Theme) map[string]string {
+
+	var possibleColors = thm.ChatLabelColors
 
 	colorManifest := make(map[string]string)
 

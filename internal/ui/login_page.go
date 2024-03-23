@@ -15,40 +15,33 @@ const LOGIN_PAGE PageSlug = "login"
 
 // LoginPage is the login page
 type LoginPage struct {
-	userAuthClient *idam.UserAuthClient
-	brochatClient  *chat.BroChatClient
-	feedClient     *state.FeedClient
-	loginForm      *tview.Form
+	userAuthClient   *idam.UserAuthClient
+	brochatClient    *chat.BroChatClient
+	feedClient       *state.FeedClient
+	loginForm        *tview.Form
+	currentThemeCode string
 }
 
 // NewLoginPage creates a new instance of the login page
 func NewLoginPage(userAuthClient *idam.UserAuthClient, brochatClient *chat.BroChatClient, feedClient *state.FeedClient) *LoginPage {
 	return &LoginPage{
-		userAuthClient: userAuthClient,
-		brochatClient:  brochatClient,
-		feedClient:     feedClient,
-		loginForm:      tview.NewForm(),
+		userAuthClient:   userAuthClient,
+		brochatClient:    brochatClient,
+		feedClient:       feedClient,
+		loginForm:        tview.NewForm(),
+		currentThemeCode: "NOT_SET",
 	}
 }
 
 func (page *LoginPage) Setup(app *tview.Application, appContext *state.ApplicationContext, nav *PageNavigator) {
 
-	theme := appContext.GetTheme()
-
 	const title = " BroChat - Login "
 
 	grid := tview.NewGrid()
-	grid.SetBackgroundColor(theme.BackgroundColor)
 	grid.SetRows(4, 0, 1, 3, 4)
 	grid.SetColumns(0, 70, 0)
 
-	page.loginForm.SetBackgroundColor(theme.AccentColor)
-	page.loginForm.SetFieldBackgroundColor(theme.AccentColorTwo)
-	page.loginForm.SetFieldTextColor(theme.ForgroundColor)
-	page.loginForm.SetLabelColor(theme.HighlightColor)
 	page.loginForm.SetBorder(true).SetTitle(title).SetTitleAlign(tview.AlignCenter)
-	page.loginForm.SetButtonStyle(theme.ButtonStyle)
-	page.loginForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
 	page.loginForm.AddInputField("Email", "", 0, nil, nil)
 	page.loginForm.AddPasswordField("Password", "", 0, '*', nil)
 
@@ -193,14 +186,35 @@ func (page *LoginPage) Setup(app *tview.Application, appContext *state.Applicati
 	})
 
 	tvInstructions := tview.NewTextView().SetTextAlign(tview.AlignCenter)
-	tvInstructions.SetBackgroundColor(theme.BackgroundColor)
 	tvInstructions.SetText("(CTRL + F) Forgot Password?")
-	tvInstructions.SetTextColor(tcell.NewHexColor(0xFFFFFF))
 
 	grid.AddItem(page.loginForm, 1, 1, 1, 1, 0, 0, true)
 	grid.AddItem(tvInstructions, 3, 1, 1, 1, 0, 0, false)
 
+	applyTheme := func() {
+		theme := appContext.GetTheme()
+
+		if page.currentThemeCode != theme.Code {
+			page.currentThemeCode = theme.Code
+			grid.SetBackgroundColor(theme.BackgroundColor)
+			page.loginForm.SetBackgroundColor(theme.AccentColor)
+			page.loginForm.SetFieldBackgroundColor(theme.AccentColorTwo)
+			page.loginForm.SetFieldTextColor(theme.ForgroundColor)
+			page.loginForm.SetLabelColor(theme.HighlightColor)
+			page.loginForm.SetButtonStyle(theme.ButtonStyle)
+			page.loginForm.SetButtonActivatedStyle(theme.ActivatedButtonStyle)
+			page.loginForm.SetBorderColor(theme.BorderColor)
+			page.loginForm.SetTitleColor(theme.TitleColor)
+			tvInstructions.SetBackgroundColor(theme.BackgroundColor)
+			tvInstructions.SetTextColor(theme.InfoColor)
+
+		}
+	}
+
+	applyTheme()
+
 	nav.Register(LOGIN_PAGE, grid, true, false, func(param interface{}) {
+		applyTheme()
 		page.onPageLoad(appContext)
 	}, func() {
 		page.onPageClose()
