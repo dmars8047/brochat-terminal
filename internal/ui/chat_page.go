@@ -231,8 +231,6 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 	page.textView.ScrollToEnd()
 
-	brochatUser := appContext.GetBrochatUser()
-
 	// Tell the server that this is the active channel
 	page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_SET_ACTIVE_CHANNEL_REQUEST, &chat.SetActiveChannelRequest{
 		ChannelId: channel.Id,
@@ -346,11 +344,20 @@ func (page *ChatPage) onPageLoad(param interface{},
 			text := page.textArea.GetText()
 
 			if len(text) > 0 {
-				page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessage{
-					ChannelId:    channel.Id,
-					Content:      text,
-					SenderUserId: brochatUser.Id,
-				})
+
+				isMacro, macroType := chat.IsMacro(text)
+
+				if isMacro {
+					page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_MACRO_REQUEST, chat.MacroRequest{
+						Type: macroType,
+						Body: text,
+					})
+				} else {
+					page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessageRequest{
+						ChannelId: channel.Id,
+						Content:   text,
+					})
+				}
 
 				page.textArea.SetText("", false)
 			}
