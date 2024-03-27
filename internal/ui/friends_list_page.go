@@ -75,6 +75,27 @@ func (page *FriendsListPage) Setup(app *tview.Application, appContext *state.App
 			nav.NavigateTo(HOME_PAGE, nil)
 			page.userFriends = make(map[uint8]chat.UserRelationship, 0)
 			page.table.Clear()
+		} else if event.Key() == tcell.KeyTab {
+			// Change the selected row to the next row
+			row, _ := page.table.GetSelection()
+			if row+1 >= page.table.GetRowCount() {
+				row = 1
+			} else {
+				row++
+			}
+
+			page.table.Select(row, 0)
+		} else if event.Key() == tcell.KeyBacktab {
+			// Change the selected row to the previous row
+			row, _ := page.table.GetSelection()
+
+			if row-1 < 1 {
+				row = page.table.GetRowCount() - 1
+			} else {
+				row--
+			}
+
+			page.table.Select(row, 0)
 		}
 
 		return event
