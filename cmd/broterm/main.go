@@ -23,7 +23,7 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.11"
+	const applicationVersion = "v0.1.12"
 
 	// Look for the update command line argument
 	if len(os.Args) > 1 {
@@ -45,9 +45,14 @@ func main() {
 			}
 
 			// Replace the current executable with the latest version
-			sourceLocation := os.Args[0]
+			sourceLocation, err := os.Executable()
 
-			err := downloadFile(downloadUrl, sourceLocation)
+			if err != nil {
+				fmt.Println("Error getting executable path:", err)
+				return
+			}
+
+			err = downloadFile(downloadUrl, sourceLocation)
 
 			if err != nil {
 				log.Fatalf("Error updating Broterm: %v", err)
