@@ -349,8 +349,9 @@ func (page *ChatPage) onPageLoad(param interface{},
 
 				if isMacro {
 					page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_MACRO_REQUEST, chat.MacroRequest{
-						Type: macroType,
-						Body: text,
+						Type:      macroType,
+						Body:      text,
+						ChannelId: channel.Id,
 					})
 				} else {
 					page.feedClient.SendFeedMessage(chat.FEED_MESSAGE_TYPE_CHAT_MESSAGE_REQUEST, chat.ChatMessageRequest{

@@ -21,7 +21,7 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.7"
+	const applicationVersion = "v0.1.8"
 
 	// Configure logging
 	config, file, err := provisionConfigFile()
