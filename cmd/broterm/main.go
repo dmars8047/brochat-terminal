@@ -23,7 +23,7 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.10"
+	const applicationVersion = "v0.1.11"
 
 	// Look for the update command line argument
 	if len(os.Args) > 1 {
@@ -53,7 +53,7 @@ func main() {
 				log.Fatalf("Error updating Broterm: %v", err)
 			}
 
-			fmt.Println("The latest Broterm executable has been downloaded and installed.")
+			fmt.Printf("\nThe latest Broterm executable has been downloaded to %s.\n", sourceLocation)
 			return
 		}
 
