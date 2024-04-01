@@ -4,12 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/dmars8047/brolib/chat"
@@ -23,45 +21,10 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.12"
+	const applicationVersion = "v0.1.13"
 
 	// Look for the update command line argument
 	if len(os.Args) > 1 {
-		if os.Args[1] == "update" {
-			fmt.Println("Updating Broterm...")
-
-			var downloadUrl string
-
-			// Get the os (windows, linux, darwin)
-			if runtime.GOOS == "windows" {
-				downloadUrl = "https://dev.brochat.app/binaries/Windows/broterm.exe"
-			} else if runtime.GOOS == "linux" {
-				downloadUrl = "https://dev.brochat.app/binaries/Linux/broterm"
-			} else if runtime.GOOS == "darwin" {
-				downloadUrl = "https://dev.brochat.app/binaries/OSX/broterm"
-			} else {
-				fmt.Println("Unsupported operating system")
-				return
-			}
-
-			// Replace the current executable with the latest version
-			sourceLocation, err := os.Executable()
-
-			if err != nil {
-				fmt.Println("Error getting executable path:", err)
-				return
-			}
-
-			err = downloadFile(downloadUrl, sourceLocation)
-
-			if err != nil {
-				log.Fatalf("Error updating Broterm: %v", err)
-			}
-
-			fmt.Printf("\nThe latest Broterm executable has been downloaded to %s.\n", sourceLocation)
-			return
-		}
-
 		if os.Args[1] == "version" {
 			fmt.Printf("Broterm Version - %s\n", applicationVersion)
 			return
@@ -81,8 +44,7 @@ func main() {
 		if _, ok := helpCommands[os.Args[1]]; ok {
 			fmt.Println("Broterm is a terminal based chat application that allows users to chat with friends and create chat rooms.\n" +
 				"Usage: broterm [update|version|help]\n" +
-				"\nupdate - updates the Broterm application\n" +
-				"version - displays the version of the Broterm application\n" +
+				"\nversion - displays the version of the Broterm application\n" +
 				"help - displays this help message\n" +
 				"\nFor more information, visit https://dev.brochat.app")
 			return
@@ -314,37 +276,4 @@ func provisionConfigFile() (*config.ConfigSettings, *os.File, error) {
 	file, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0644)
 
 	return configSettings, file, err
-}
-
-func downloadFile(url, destination string) error {
-	// Download the latest version of the application
-	resp, err := http.Get(url)
-
-	if err != nil {
-		log.Fatalf("Error downloading the latest version of Broterm: %v", err)
-	}
-
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		log.Fatalf("Error downloading the latest version of Broterm: %v", resp.Status)
-	}
-
-	// Create the file, overwriting if it already exists
-	out, err := os.Create(destination)
-
-	if err != nil {
-		log.Fatalf("Error creating the file: %v", err)
-	}
-
-	defer out.Close()
-
-	// Write the body to the file
-	_, err = io.Copy(out, resp.Body)
-
-	if err != nil {
-		log.Fatalf("Error writing the file: %v", err)
-	}
-
-	return nil
 }
