@@ -21,7 +21,7 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.14"
+	const applicationVersion = "v0.1.15"
 
 	// Look for the update command line argument
 	if len(os.Args) > 1 {
