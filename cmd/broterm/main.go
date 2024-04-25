@@ -21,7 +21,7 @@ import (
 
 func main() {
 
-	const applicationVersion = "v0.1.15"
+	const applicationVersion = "v0.1.16"
 
 	// Look for the update command line argument
 	if len(os.Args) > 1 {
@@ -185,6 +185,7 @@ func provisionConfigFile() (*config.ConfigSettings, *os.File, error) {
 
 	// Get the user's home directory
 	homeDir, err := os.UserHomeDir()
+
 	if err != nil {
 		return nil, nil, err
 	}
@@ -262,7 +263,8 @@ func provisionConfigFile() (*config.ConfigSettings, *os.File, error) {
 				oldestFile = file
 			}
 		}
-		err = os.Remove(fmt.Sprintf("%s/%s", config.DEFAULT_CONFIG_DIRECTORY_NAME, oldestFile.Name()))
+
+		err = os.Remove(fmt.Sprintf("%s/%s", configDir, oldestFile.Name()))
 
 		if err != nil {
 			return nil, nil, err
